@@ -1,0 +1,26 @@
+name: Bug report
+description: Report a reproducible problem using synthetic data.
+body:
+  - type: markdown
+    attributes:
+      value: For vulnerabilities, follow SECURITY.md. Never include photos, gallery links, databases, passwords or tokens.
+  - type: input
+    id: version
+    attributes:
+      label: Version / image digest
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Host OS, Docker/Node version and browser. Redact identifying details.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps, expected result and actual result
+      description: Use synthetic data and redacted logs only.
+    validations:
+      required: true

@@ -1,0 +1,97 @@
+// Real browser/HTTP collection browsing workflow, synthetic loopback-only data; never uses the live app.
+import assert from 'node:assert/strict';
+import { access, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { randomBytes } from 'node:crypto';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import net from 'node:net';
+import Database from 'better-sqlite3';
+import sharp from 'sharp';
+import { chromium, expect } from '@playwright/test';
+
+const socket=net.createServer();socket.listen(0,'127.0.0.1');await once(socket,'listening');
+const port=socket.address().port;await new Promise(resolve=>socket.close(resolve));
+const base=`http://127.0.0.1:${port}`,scratch=await mkdtemp(path.join(tmpdir(),'picture-day-collection-browser-')),dataDir=path.join(scratch,'data');
+const server=spawn(process.execPath,['server.js'],{env:{...process.env,DATA_DIR:dataDir,APP_SECRET:randomBytes(32).toString('hex'),SETUP_ENABLED:'1',HOST:'127.0.0.1',PORT:String(port),ORIGIN:base,PUBLIC_ORIGIN:base,NODE_ENV:'production'},stdio:['ignore','pipe','pipe']});
+let logs='',browser,db,cookie='';
+server.stdout.on('data',b=>logs=(logs+b).slice(-10000));server.stderr.on('data',b=>logs=(logs+b).slice(-10000));
+const errors=[],checks=[],pass=text=>{checks.push(text);console.log(`PASS ${text}`);};
+const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const request=(url,options={},authenticated=true)=>fetch(base+url,{redirect:'manual',...options,headers:{origin:base,accept:'text/html',...(authenticated?{cookie}:{}),...options.headers},signal:AbortSignal.timeout(15000)});
+const form=values=>({method:'POST',body:new URLSearchParams(values)});
+const json=body=>({method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+try {
+  for(let i=0;i<100;i++){try{if((await request('/healthz')).ok)break;}catch{}if(i===99||server.exitCode!==null)throw Error(logs);await delay(100);}
+  let r=await request('/setup',form({email:'collections@example.invalid',password:randomBytes(24).toString('hex'),studioName:'Collection fixture'}));assert.equal(r.status,303);cookie=r.headers.get('set-cookie').split(';')[0];
+  r=await request('/admin?/create',form({name:'Collection browsing fixture'}));const eventPath=r.headers.get('location'),eventId=Number(eventPath.split('/').at(-1));await request(eventPath+'/upload');
+  db=new Database(path.join(dataDir,'db/app.sqlite'));const intake=db.prepare('SELECT id FROM galleries WHERE event_id=? AND is_intake=1').get(eventId).id;
+  const upload=async(n,color)=>{
+    const body=await sharp({create:{width:600,height:800,channels:3,background:color}}).jpeg().toBuffer();
+    const r=await request(`/admin/api/events/${eventId}/upload?`+new URLSearchParams({gallery:String(intake),filename:`SHOT_${n}.jpg`,role:'print'}),{method:'PUT',body,headers:{'content-type':'application/octet-stream'}});
+    assert.equal(r.status,200);const id=(await r.json()).photoId;
+    await expect.poll(()=>db.prepare('SELECT rendition_status s FROM photos WHERE id=?').get(id)?.s,{timeout:20000}).toBe('ready');return id;
+  };
+  const oldTen=await upload(10,'#a26475'),oldTwo=await upload(2,'#5692a6'),freshA=await upload(20,'#d7a455'),freshB=await upload(21,'#76a07c');
+  await request(eventPath+'?/addGalleries',form({names:'Zoe\nKid 10\nalice\nKid 2\nALICE\nBen\nÉmile'}));
+  const galleries=db.prepare('SELECT * FROM galleries WHERE event_id=? AND is_intake=0 ORDER BY id').all(eventId),byName=name=>galleries.find(g=>g.name===name);
+  const kidTwo=byName('Kid 2'),kidTen=byName('Kid 10');
+  r=await request(`/admin/api/events/${eventId}/organize`,json({targets:[{kind:'existing',galleryId:kidTwo.id,photoIds:[oldTen,oldTwo]},{kind:'existing',galleryId:kidTen.id,photoIds:[oldTen]}]}));assert.equal(r.status,200);
+  const expected=['alice','ALICE','Ben','Émile','Kid 2','Kid 10','Zoe'];
+  const membership=()=>JSON.stringify(db.prepare('SELECT * FROM gallery_photos ORDER BY gallery_id,photo_id').all());const beforeMembership=membership();
+  const immutable=()=>JSON.stringify(Object.fromEntries(['photos','photo_files','admin_users','admin_sessions'].map(t=>[t,db.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all()])));const before=immutable();
+  let executablePath=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;if(!executablePath)for(const p of [chromium.executablePath(),'/usr/bin/chromium','/usr/bin/google-chrome']){try{await access(p);executablePath=p;break;}catch{}}
+  browser=await chromium.launch({headless:true,...(executablePath?{executablePath}:{})});const owner=await browser.newContext({viewport:{width:1360,height:1000}});const split=cookie.indexOf('=');await owner.addCookies([{name:cookie.slice(0,split),value:cookie.slice(split+1),url:base,httpOnly:true,sameSite:'Lax'}]);
+  const page=await owner.newPage();page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(base+eventPath,{waitUntil:'networkidle'});
+  const nav=page.getByRole('navigation',{name:'Photo collections'});
+  const sidebarNames=()=>nav.locator('a[href^="?g="] > span:last-child').evaluateAll(els=>els.map(el=>el.childNodes[0].textContent.trim()));
+  assert.deepEqual(await sidebarNames(),['To sort',...expected]);
+  await page.getByLabel('Find collection in sidebar').fill('kid');assert.deepEqual(await sidebarNames(),['To sort','Kid 2','Kid 10']);await page.getByLabel('Find collection in sidebar').fill('');
+  await page.locator(`[data-photo-check="${freshA}"]`).click();await page.locator(`[data-photo-check="${freshB}"]`).click();
+  await page.getByRole('button',{name:'Browse collections',exact:true}).click();const browse=page.getByRole('dialog',{name:'Browse collections',exact:true});const chooser=browse.getByLabel('Collection to browse');
+  assert.deepEqual(await chooser.locator('option').allTextContents(),expected);await chooser.selectOption(String(kidTwo.id));
+  await expect(browse.getByRole('button',{name:'View existing photo shot_2',exact:true})).toBeVisible();await expect(browse.getByRole('button',{name:'View existing photo shot_10',exact:true})).toBeVisible();
+  assert.deepEqual((await browse.locator('button[aria-label^="View existing photo"]').allTextContents()).map(s=>s.trim()),['shot_2','shot_10']);
+  await expect.poll(()=>browse.locator('img').evaluateAll(images=>images.length===2&&images.every(i=>i.complete&&i.naturalWidth>0))).toBe(true);
+  await page.keyboard.press('Escape');await expect(browse).not.toBeVisible();for(const id of [freshA,freshB])await expect(page.locator(`[data-photo-check="${id}"]`)).toHaveAttribute('aria-pressed','true');assert.equal(membership(),beforeMembership);
+  pass('Sidebar, search, and read-only collection browser use natural names and preserve the selected batch');
+  await page.getByRole('button',{name:'Organize 2 photos',exact:true}).click();const sorting=page.getByRole('dialog',{name:'Who’s in these photos?',exact:true});
+  await expect(sorting.getByRole('checkbox').first()).toBeVisible();
+  assert.deepEqual(await sorting.getByRole('checkbox').evaluateAll(inputs=>inputs.map(i=>i.getAttribute('aria-label').replace(/^Assign /,''))),expected);
+  await sorting.getByRole('button',{name:'View photos in Kid 2',exact:true}).click();await expect(browse).toBeVisible();
+  await browse.getByRole('button',{name:'View existing photo shot_2',exact:true}).click();const closer=page.getByRole('dialog',{name:'Existing collection photo',exact:true});await expect(closer).toBeVisible();
+  await expect(closer).toContainText('1 of 2');await page.keyboard.press('ArrowRight');await expect(closer).toContainText('shot_10');await expect(closer).toContainText('2 of 2');await page.keyboard.press('Escape');await expect(closer).not.toBeVisible();await expect(browse).toBeVisible();await expect(sorting).toBeVisible();
+  await browse.getByRole('button',{name:'Add 2 selected photos here',exact:true}).click();await expect(browse.getByRole('button',{name:'✓ Added to batch',exact:true})).toBeDisabled();assert.equal(membership(),beforeMembership);
+  await page.keyboard.press('Escape');await expect(sorting.getByRole('checkbox',{name:'Assign Kid 2',exact:true})).toBeChecked();
+  await sorting.getByRole('button',{name:'Select none in batch',exact:true}).click();await sorting.locator(`[data-photo-check="${freshB}"]`).click();
+  await sorting.getByRole('button',{name:'View photos in Kid 10',exact:true}).click();await browse.getByRole('button',{name:'Add 1 selected photo here',exact:true}).click();await browse.getByRole('button',{name:'Back to sorting',exact:true}).click();
+  assert.equal(membership(),beforeMembership);await expect(sorting.getByRole('checkbox',{name:'Assign Kid 2',exact:true})).toBeChecked();await expect(sorting.getByRole('checkbox',{name:'Assign Kid 10',exact:true})).toBeChecked();
+  pass('Nested previews support arrow keys and Escape; different subsets can be assigned without premature writes');
+  await sorting.getByLabel('New child collection').fill('Aaron');await sorting.getByRole('button',{name:'+ Create & assign selected',exact:true}).click();
+  assert.deepEqual(await sorting.getByRole('checkbox').evaluateAll(inputs=>inputs.map(i=>i.getAttribute('aria-label').replace(/^Assign /,''))),['Aaron',...expected]);
+  await sorting.getByRole('button',{name:'View photos in Aaron',exact:true}).click();await expect(browse).toContainText('1 photo · unsaved collection');await expect(browse.getByRole('button',{name:'View existing photo shot_21',exact:true})).toBeVisible();await page.keyboard.press('Escape');
+  await sorting.getByLabel('Find child collection').fill('kid');assert.equal(await sorting.getByRole('checkbox').count(),2);await sorting.getByLabel('Find child collection').fill('');
+  await sorting.getByRole('button',{name:'Save & finish',exact:true}).click();await expect(sorting).not.toBeVisible();
+  const members=id=>db.prepare('SELECT gallery_id FROM gallery_photos WHERE photo_id=? ORDER BY gallery_id').all(id).map(r=>r.gallery_id);
+  const aaron=db.prepare("SELECT id FROM galleries WHERE event_id=? AND name='Aaron'").get(eventId).id;
+  assert.deepEqual(members(freshA),[kidTwo.id]);assert.deepEqual(members(freshB),[kidTen.id,kidTwo.id,aaron].sort((a,b)=>a-b));assert.deepEqual(members(oldTwo),[kidTwo.id]);assert.deepEqual(members(oldTen),[kidTen.id,kidTwo.id].sort((a,b)=>a-b));assert.equal(immutable(),before);
+  pass('Inline new collections sort immediately; search and final save retain exact solo/shared assignments and original bytes');
+  await page.goto(base+eventPath+`?g=${kidTwo.id}`,{waitUntil:'networkidle'});await page.getByText('Collection details & organization',{exact:true}).click();await page.getByLabel('Private label',{exact:true}).fill('Abby');await page.getByRole('button',{name:'Save label',exact:true}).click();
+  await expect.poll(sidebarNames).toEqual(['To sort','Aaron','Abby','alice','ALICE','Ben','Émile','Kid 10','Zoe']);
+  await page.goto(base+eventPath+'/upload',{waitUntil:'networkidle'});assert.deepEqual(await page.getByLabel('New photos go to').locator('option').allTextContents(),['To sort (private)','Aaron','Abby','alice','ALICE','Ben','Émile','Kid 10','Zoe']);
+  pass('Renaming immediately reorders navigation, and the upload destination uses the same name order');
+  const endpoint=`/admin/api/events/${eventId}/photos?gallery=${kidTwo.id}`;r=await request(endpoint);assert.equal(r.status,200);assert.match(r.headers.get('cache-control'),/private, no-store/);assert.equal((await request(endpoint,{},false)).status,401);assert.equal((await request(`/admin/api/events/${eventId+999}/photos?gallery=${kidTwo.id}`)).status,404);
+  assert.equal((await request(endpoint,{headers:{origin:'https://unrelated.invalid','sec-fetch-site':'cross-site'}})).status,403);
+  const empty=byName('Ben');await page.goto(base+eventPath,{waitUntil:'networkidle'});await page.getByRole('button',{name:'Browse collections',exact:true}).click();await chooser.selectOption(String(empty.id));await expect(browse).toContainText('No photos in this collection yet.');
+  let held=false;await page.route(`**/photos?gallery=${kidTwo.id}`,async route=>{held=true;await delay(600);try{await route.continue();}catch{}});await chooser.selectOption(String(kidTwo.id));await expect.poll(()=>held).toBe(true);await chooser.selectOption(String(empty.id));await expect(browse).toContainText('No photos in this collection yet.');await delay(750);await expect(browse).toContainText('No photos in this collection yet.');await page.unrouteAll();
+  await page.route(`**/photos?gallery=${kidTwo.id}`,route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Temporary fixture outage'})}));await chooser.selectOption(String(kidTwo.id));await expect(browse.getByRole('alert')).toContainText('Temporary fixture outage');await page.unrouteAll();await browse.getByRole('button',{name:'Retry',exact:true}).click();await expect(browse.getByRole('button',{name:'View existing photo shot_2',exact:true})).toBeVisible();
+  pass('Private event-scoped reads, empty collections, late responses and retry failures are handled without stale images');
+  await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.ok(await browse.evaluate(d=>d.scrollWidth<=d.clientWidth));
+  if(process.env.COLLECTION_ARTIFACTS){await mkdir(process.env.COLLECTION_ARTIFACTS,{recursive:true});await page.screenshot({path:path.join(process.env.COLLECTION_ARTIFACTS,'mobile-collection-browser.png')});}
+  await page.mouse.click(1,1);await expect(browse).not.toBeVisible();assert.deepEqual(errors,[]);assert.equal(immutable(),before);
+  if(process.env.COLLECTION_ARTIFACTS){await page.setViewportSize({width:1360,height:1000});await page.locator(`[data-photo-check="${freshA}"]`).click();await page.getByRole('button',{name:'Organize 1 photo',exact:true}).click();await page.screenshot({path:path.join(process.env.COLLECTION_ARTIFACTS,'desktop-sorting-collections.png')});}
+  pass('Mobile browsing fits the viewport, backdrop dismissal works, and photo files/accounts/sessions are unchanged');
+  console.log(JSON.stringify({passed:checks.length,checks},null,2));
+} finally {await browser?.close();db?.close();server.kill('SIGTERM');if(server.exitCode===null&&server.signalCode===null)await once(server,'exit');await rm(scratch,{recursive:true,force:true});}
