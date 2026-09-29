@@ -1,7 +1,7 @@
 import { thumbUrl } from './api';
 import { toast } from './toast.svelte';
 
-export interface PhotoPresentation { id: number; hash?: string | null; urls?: { thumb: string; preview: string; web: string }; shareUrl?: string; }
+export interface PhotoPresentation { id: number; width?: number | null; height?: number | null; hash?: string | null; urls?: { thumb: string; preview: string; web: string }; shareUrl?: string; }
 export function photoUrl(photo: PhotoPresentation | undefined, kind: 'thumb' | 'preview' | 'web' = 'thumb'): string {
   return photo?.urls?.[kind] ?? (photo ? thumbUrl(photo.id, photo.hash ?? null, kind) : '');
 }

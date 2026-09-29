@@ -103,3 +103,57 @@ details > summary { list-style-position: inside; }
 @media(max-width:600px) { .gallery-actions { gap: .5rem; } .gallery-actions > div { width: 100%; } .gallery-actions > div:first-child { order: 2; } .gallery-actions .button-primary, .gallery-actions .button-secondary { padding: .55rem .65rem; } }
 
 @media(max-width:600px) { .album-hero-image img { max-height: 320px; } }
+
+/* Phone galleries: compact hierarchy, readable controls, and photos up front. */
+.mobile-tag-toggle { display: none; }
+@media (max-width: 767px) {
+  .parent-shell { font-size: 1rem; }
+  .parent-shell input:not([type="checkbox"]):not([type="radio"]), .parent-shell select, .parent-shell textarea { font-size: 1rem; }
+  .parent-shell .button-primary, .parent-shell .button-secondary, .parent-shell .button-quiet { font-size: .9375rem; }
+  .album-home { padding-inline: 1rem; }
+  .album-masthead { min-height: 60px; gap: .5rem; }
+  .album-masthead > span { overflow-wrap: anywhere; }
+  .album-hero { padding: 1.5rem 0; }
+  .album-hero.with-image { display: flex; flex-direction: column; align-items: stretch; gap: 1rem; }
+  .album-intro h1 { font-size: clamp(2rem, 8vw, 2.6rem); margin: .6rem 0 .8rem; }
+  .album-tagline { font-size: 1rem; line-height: 1.5; }
+  .album-count { margin: 1rem 0; font-size: .875rem; }
+  .album-section-heading { align-items: center; margin-bottom: 1.25rem; gap: .5rem; }
+  .album-section-heading h2 { font-size: 1.75rem; }
+  .album-section-heading > span { font-size: .8125rem; flex-shrink: 0; }
+  .album-collections { padding-top: 1.5rem; }
+  .parent-collection-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1.25rem .75rem; }
+  .collection-caption { display: block; padding-top: .6rem; }
+  .collection-caption h3 { font-size: .9375rem; }
+  .collection-caption > span { font-size: .8125rem; }
+  .collection-open { display: none; }
+  .gallery-workspace { padding: .5rem .75rem 7rem; }
+  .gallery-breadcrumb { margin-bottom: .75rem; gap: 0; flex-wrap: nowrap; }
+  .gallery-breadcrumb > span { max-width: 46%; text-align: right; font-size: .625rem; letter-spacing: .07em; overflow-wrap: anywhere; }
+  .gallery-breadcrumb > a { padding-left: 0; flex-shrink: 0; }
+  .gallery-heading { margin-bottom: 1rem; gap: .5rem; align-items: center; }
+  .gallery-heading > div { min-width: 0; flex: 1; }
+  .gallery-heading h1 { font-size: clamp(1.75rem, 7vw, 2.25rem); overflow-wrap: anywhere; }
+  .gallery-heading .family-visit { padding-inline: .65rem; font-size: .8125rem; }
+  .family-verb { display: none; }
+  .gallery-actions { gap: .5rem; margin-bottom: .75rem; padding: .5rem 0; }
+  .gallery-actions > div { width: 100%; }
+  .gallery-actions > div:first-of-type { order: 2; }
+  .gallery-actions > a { order: 3; }
+  .gallery-actions > div:first-of-type > .button-primary { flex: 1; }
+  .gallery-actions .button-primary, .gallery-actions .button-secondary { font-size: .875rem; padding: .55rem .7rem; }
+  .gallery-tabs { gap: .25rem; border-radius: .6rem; padding: .2rem; background: #e9e9df; }
+  .gallery-tabs button { flex: 1; border-color: transparent; background: transparent; color: #536158; box-shadow: none; }
+  .gallery-tabs button[aria-pressed="true"] { background: #fffdf9; color: #203e35; box-shadow: 0 1px 3px #203e3512; }
+  .gallery-photo-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: .75rem .5rem; }
+  .gallery-photo-stage { border-radius: .35rem; }
+  .photo-card-actions { display: flex; justify-content: space-between; align-items: center; gap: .25rem; padding: 0; }
+  .photo-card-meta label { padding-left: .25rem; font-size: .875rem; }
+  .photo-card-actions .photo-share { display: none; }
+  .photo-card-actions .photo-download { width: 44px; min-width: 44px; height: 44px; padding: 0; background: transparent; border-color: transparent; }
+  .photo-download > span { display: none; }
+  .public-tag-panel { margin-bottom: .75rem; border-radius: .6rem; padding: 0 .75rem; }
+  .mobile-tag-toggle { display: flex; align-items: center; justify-content: space-between; min-height: 44px; width: 100%; font-size: .9375rem; font-weight: 600; }
+  .public-tag-options { display: none; }
+  .public-tag-options.expanded { display: block; padding-bottom: .75rem; }
+}

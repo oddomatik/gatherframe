@@ -102,7 +102,7 @@ async function assertVisible(ids) { await expect.poll(() => visibleIds(page)).to
  await expect.poll(()=>counts().photo_view).toBe(1);
  await page.getByRole('button',{name:'Next photo',exact:true}).click();
  await expect.poll(()=>counts().photo_view).toBe(2);
- await page.keyboard.press('Escape');
+ await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'Photo preview',exact:true})).not.toBeVisible();
  await page.getByRole('button',{name:'Remove favorite photo 1',exact:true}).click();
  await expect.poll(()=>counts().favorite_remove).toBe(1);
  // Repeated render, query-only filter, and return-position storage must not count new opens.
@@ -113,7 +113,7 @@ async function assertVisible(ids) { await expect.poll(() => visibleIds(page)).to
  const initial=counts();let r2=await ctx.request.head(`${album}/file/${file.id}`);assert.equal(r2.status(),200);assert.deepEqual(counts(),initial);
  r2=await ctx.request.get(`${album}/file/${file.id}`,{headers:{Range:'bytes=0-10'}});assert.equal(r2.status(),206);await r2.body();await expect.poll(()=>counts().download_start).toBe(1);assert.equal(counts().download_complete,undefined);
  r2=await ctx.request.get(`${album}/file/${file.id}`);assert.equal(r2.status(),200);assert.equal((await r2.body()).length,file.bytes);await expect.poll(()=>counts().download_complete).toBe(1);
- await page.getByRole('button',{name:'Download photo ↓',exact:true}).first().click();
+ await page.getByRole('button',{name:'Download photo 1',exact:true}).first().click();
  await page.getByRole('button',{name:'Prepare photo',exact:true}).click();
  await expect(page.getByRole('button',{name:'Open share sheet',exact:true})).toBeVisible();
  await expect.poll(()=>db.prepare("SELECT count(*) n FROM guest_activity WHERE kind='download_complete' AND channel='phone'").get().n).toBe(1);

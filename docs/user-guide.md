@@ -9,6 +9,26 @@
 6. Review orders and requests, approve the exact print master, record manual payments and production progress.
 7. Inspect Visibility for activity after tracking began. It reports actions, not a census of families or guaranteed device saves.
 
+## Mobile galleries
+
+Tap a photo to fill the browser viewport. Swipe left/right to browse the current collection,
+tag filter or favorites; pinch or double-tap to zoom. Tap once to hide/show controls, or drag
+vertically when unzoomed to dismiss. Close is always available in the top toolbar when controls
+are shown. Favorite, Share and Download photo operate on the photo currently being viewed.
+
+Photos keep their original proportions. Preview zoom does not download the original file:
+use Download photo for the full-quality download options. Returning to the grid keeps your
+download selections and browsing position. Removing a photo from a favorites-only view advances
+to another favorite; removing the last one closes the viewer.
+
+On phones, tag controls are under Filters and each thumbnail has a compact download button.
+On desktop, the comparison/filmstrip view remains the default; Full screen opens the same
+immersive viewer, with keyboard arrows and Escape as alternatives to touch gestures.
+
+Full screen here means the **browser viewport**, not a guarantee that Safari/Chrome hides its
+address bar. Automated tests use Chromium touch emulation; physical iOS/Android behavior still
+requires device acceptance testing.
+
 ## Detailed guides
 
 - [Resumable uploads and recoverable sorting](upload-and-sorting-recovery.md)
