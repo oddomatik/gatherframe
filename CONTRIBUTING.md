@@ -54,6 +54,9 @@ Source bundles are made from an explicit allowlist before building, never from a
 
 ## Contributions and governance
 
+See [release and repository policy](docs/release-policy.md) for the canonical
+application boundary, supported versions and temporary customer-patch rules.
+
 Maintainers review changes; submitting a PR does not promise acceptance or release timing.
 Require passing CI and review before merging into `main` once repository rules are configured.
 For the initial solo-maintainer phase, owner-only maintenance merges may be necessary; document exceptions.
