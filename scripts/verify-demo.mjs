@@ -10,6 +10,7 @@ import net from 'node:net';
 import Database from 'better-sqlite3';
 import sharp from 'sharp';
 import {chromium,expect} from '@playwright/test';
+import {verifyPrintPlanner} from './verify-print-planner.mjs';
 const root=await mkdtemp(path.join(tmpdir(),'gatherframe-demo-test-')),data=path.join(root,'data'),photos=path.join(root,'photos');
 await mkdir(photos);
 const names=['coast-wide','coast-detail','forest-wide','forest-detail','meadow-wide','meadow-detail'];
@@ -35,7 +36,7 @@ try{
  assert.equal(await start(true,{SETUP_ENABLED:'1'}),false);assert.match(logs,/must not enable setup/);await stop();ok('Demo mode refuses ordinary databases and enabled setup');
  assert.equal(await start(true,{B2_KEY_ID:'demo-rejected-credential'}),false);assert.match(logs,/must not enable setup/);await stop();
  assert.equal(await start(true),true,logs);
- const fingerprint=()=>JSON.stringify(Object.fromEntries(['photos','photo_files','gallery_photos','orders','payments','settings','guest_activity'].map(t=>[t,db.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all()])));
+ const fingerprint=()=>JSON.stringify(Object.fromEntries(['photos','photo_files','gallery_photos','orders','payments','settings','guest_activity','catalogs','print_sizes','sheet_templates','sheet_template_cells','products','product_sheets','event_products','order_items','order_item_sheets','order_item_cells'].map(t=>[t,db.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all()])));
  const before=fingerprint();
  for(const p of ['/','/admin','/admin/events/1','/admin/orders','/admin/orders/1','/admin/visibility','/admin/catalog','/admin/storage','/admin/settings','/g/field-notes','/g/field-notes/c/coast','/o/sample-receipt-1']){const response=await req(p);assert.equal(response.status,200,p);assert.equal(response.headers.get('x-robots-tag'),'noindex, nofollow');}
  assert.equal((await req('/setup')).status,404);
@@ -53,12 +54,13 @@ try{
  await page.goto(base+'/admin/events/1',{waitUntil:'networkidle'});for(const img of await page.locator('img:visible').all()){await img.scrollIntoViewIfNeeded();await expect.poll(()=>img.evaluate(i=>i.complete&&i.naturalWidth>0)).toBe(true);}
  await page.goto(base+'/admin/events/1/upload',{waitUntil:'networkidle'});for(const input of await page.locator('input[type=file]').all())await expect(input).toBeDisabled();
  await page.goto(base+'/admin/settings',{waitUntil:'networkidle'});const firstForm=page.locator('form[method=post]').first();await firstForm.evaluate(f=>f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));await expect(page.getByText('This is a read-only demo. Your changes have not been saved.')).toBeVisible();ok('Studio save attempts explain read-only state and file selectors are disabled');
+ await verifyPrintPlanner(page,base,process.env.PRINT_PLANNER_EVIDENCE);ok('Optional print planner works with synthetic catalog content and no server writes');
  const zip=await context.request.post(base+'/g/field-notes/api/zip',{data:{photoIds:[1,2],roles:['print']}});assert.equal(zip.status(),200);const zipInfo=await zip.json();assert.equal(zipInfo.files,2);const archive=await context.request.get(base+zipInfo.url);assert.equal(archive.status(),200);assert.equal((await archive.body()).subarray(0,2).toString(),'PK');ok('Sample original downloads produce a real ZIP without altering illustrative activity');
  // Exercise the real print layout, quote and checkout UI.
  await page.goto(base+'/g/field-notes/c/coast/order',{waitUntil:'networkidle'});
  await page.goto(base+'/g/field-notes/c/coast/order?photo=1',{waitUntil:'networkidle'});
  await page.getByRole('button',{name:'Add',exact:true}).last().click();await page.getByRole('button',{name:'Done',exact:true}).click();await page.getByRole('button',{name:'Checkout',exact:true}).click();await expect(page.getByRole('heading',{name:'Sample order preview',exact:true})).toBeVisible();await expect(page.locator('form#checkout')).toHaveCount(0);await expect(page.locator('input[type=email],input[type=tel],input[autocomplete=name]')).toHaveCount(0);await expect(page.getByRole('button',{name:'Place order',exact:true})).toHaveCount(0);await expect(page.getByRole('link',{name:'Sample receipt ↗',exact:true})).toBeVisible();ok('Print quote and checkout work without contact fields or order submission');
  assert.equal(fingerprint(),before,'Demo changed shared fixture content');assert.deepEqual(errors,[]);assert.deepEqual(outbound,[]);ok('Shared fixture content is unchanged and browser has no runtime errors or external calls');
- await browser.close();browser=undefined;await stop();assert.equal(await start(false),true);assert.equal((await req('/')).status,302);assert.equal((await req('/admin')).status,303);assert.equal((await req('/admin/api/events/1/photos')).status,401);assert.equal((await req('/media/1/thumb')).status,403);ok('Ordinary mode retains authenticated studio access');
+ await browser.close();browser=undefined;await stop();assert.equal(await start(false),true);assert.equal((await req('/')).status,302);assert.equal((await req('/admin')).status,303);assert.equal((await req('/admin/catalog/planner')).status,303);assert.equal((await req('/admin/api/events/1/photos')).status,401);assert.equal((await req('/media/1/thumb')).status,403);ok('Ordinary mode retains authenticated studio access');
  console.log(JSON.stringify({passed:checks.length,checks}));
 }finally{await browser?.close();await stop();db?.close();await rm(root,{recursive:true,force:true});}

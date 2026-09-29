@@ -46,15 +46,15 @@
         <button class="col-span-2 rounded-lg bg-stone-900 px-3 py-1.5 text-sm text-white">Save</button>
       </div>
     </form>
-    <form method="post" action="?/duplicate" use:enhance class="text-right"><input type="hidden" name="id" value={p.id} /><button class="text-xs text-stone-600 underline">Duplicate {p.name}</button></form>
+    <div class="flex flex-wrap items-center justify-end gap-4"><a href={`/admin/catalog/planner?product=${p.id}`} class="text-xs text-stone-600 underline">Explore paper layouts</a><form method="post" action="?/duplicate" use:enhance><input type="hidden" name="id" value={p.id} /><button class="text-xs text-stone-600 underline">Duplicate {p.name}</button></form></div>
   {/each}
 </section>
 
 <details class="mt-8">
-  <summary class="cursor-pointer text-sm font-semibold">Internal layout reference</summary><p class="mt-2 text-xs text-stone-500">Reference only. Final crop and print layout are yours to decide.</p>
+  <summary class="cursor-pointer text-sm font-semibold">Internal layout reference</summary><p class="mt-2 text-xs text-stone-500">Reference only. Final crop and print layout are yours to decide. <a href="/admin/catalog/planner" class="underline">Open interactive print planner →</a></p>
   <div class="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
     {#each Object.values(data.catalog.sheets) as tpl (tpl.code)}
-      <div><SheetDiagram sheet={tpl} sizes={data.catalog.printSizes} /><p class="mt-1 text-xs text-stone-600">{tpl.label} <span class="text-stone-400">({tpl.code})</span></p></div>
+      <div><SheetDiagram sheet={tpl} sizes={data.catalog.printSizes} /><p class="mt-1 text-xs text-stone-600">{tpl.label} <span class="text-stone-400">({tpl.code})</span></p><a href={`/admin/catalog/planner?template=${encodeURIComponent(tpl.code)}`} class="mt-1 inline-block text-xs text-stone-600 underline">Explore this print mix →</a></div>
     {/each}
   </div>
 </details>
