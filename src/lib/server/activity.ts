@@ -9,7 +9,7 @@ export type ClientKind = typeof clientKinds[number];
 type Activity = { kind: ClientKind | 'download_start' | 'download_complete'; galleryId?: number | null; photoId?: number | null;
  channel?: string; social?: number; print?: number; raw?: number; bytes?: number };
 export function guestTraffic(e: Pick<RequestEvent,'locals'|'request'>) {
- return !e.locals?.admin && !/bot|crawler|spider|preview|facebookexternalhit|whatsapp|headless/i.test(e.request.headers.get('user-agent') ?? '');
+ return !e.locals?.demo && !e.locals?.admin && !/bot|crawler|spider|preview|facebookexternalhit|whatsapp|headless/i.test(e.request.headers.get('user-agent') ?? '');
 }
 export function visitorKey(eventId: number, sid: string) {
  return createHmac('sha256',env.secret).update(`activity:${eventId}:${sid}`).digest('hex');

@@ -49,6 +49,10 @@ unless intentionally deleting the instance and its data.
 No Node on your server? Copy `.env.example` to `.env`, set `APP_SECRET` to `openssl rand -hex 32`
 output, and protect the file with `chmod 600 .env`. Never use an example secret.
 
+## Demo studio
+
+An optional [read-only demo mode](docs/demo.md) provides a sample gallery and public studio tour in a separately seeded instance. No private photos, contact details or real orders are needed.
+
 ## Self-hosting and operations
 
 - [Configuration, HTTPS and owner setup](docs/self-hosting.md)

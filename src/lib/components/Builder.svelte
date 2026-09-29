@@ -22,10 +22,11 @@
     catalog: Catalog;
     initialPhotoId: number | null;
     studio: { name: string; currency: string };
+    demo?: boolean;
     venmoAvailable?: boolean;
     fromFavorites?: boolean; emailUpdatesAvailable?: boolean;
   }
-  let { event, gallery, photos, siblings, catalog, initialPhotoId, studio, venmoAvailable = false, fromFavorites = false, emailUpdatesAvailable = false }: Props = $props();
+  let { event, gallery, photos, siblings, catalog, initialPhotoId, studio, demo = false, venmoAvailable = false, fromFavorites = false, emailUpdatesAvailable = false }: Props = $props();
 
   type Step = 'choose' | 'fill' | 'cart' | 'checkout';
   let step = $state<Step>('choose');
@@ -207,6 +208,7 @@
   async function submit(ev: SubmitEvent) {
     ev.preventDefault();
     submitError = null;
+    if (demo) { submitError = 'This demo does not accept orders.'; return; }
     if (!cart.customer.name.trim()) { submitError = 'Please enter your name.'; return; }
     if (!cart.customer.phone.trim() && !cart.customer.email.trim()) { submitError = 'We need one way to reach you: a phone number or an email.'; return; }
     if (!cart.pendingOrder && cart.customer.emailUpdates && !cart.customer.email.trim()) { submitError = 'Enter your email address to receive order updates.'; return; }
@@ -387,7 +389,8 @@
     {/if}
 
   {:else if step === 'checkout'}
-    <h1 class="text-2xl font-semibold">Almost done</h1>
+    <h1 class="text-2xl font-semibold">{demo ? 'Sample order preview' : 'Almost done'}</h1>
+    {#if demo}<p class="notice mt-4">This is a preview only. No contact details or payments are collected, and no order will be submitted.</p>{:else}
     <p class="mt-1 text-sm text-stone-600">Tell us who this order is for and how to reach you.</p>
     <section class="mt-4 grid gap-3 sm:grid-cols-2" aria-label="Payment options">
       <div class="rounded-xl border border-emerald-300 bg-emerald-50 p-4">
@@ -432,6 +435,7 @@
       {#if submitError}<p role="alert" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{submitError}</p>{/if}
       {#if cart.pendingOrder}<div role="status" class="notice text-sm"><strong>Let’s make sure this order arrived.</strong><p class="mt-1">Your exact order is saved in this browser. Retry it to find the confirmation or finish placing it, without placing a second order. Editing is paused until we know the result.</p></div>{/if}
     </form>
+    {/if}
 
     <div class="mt-5 rounded-xl border border-stone-200 bg-white p-3 text-sm">
       {#each (serverQuote ?? local).items as pi (pi.key)}
@@ -441,7 +445,7 @@
         {#if pi.problems.length}<p class="mt-2 text-sm text-red-700">{pi.problems.map(parentProblem).join('. ')}</p>{/if}
       {/each}
       <div class="mt-2 flex justify-between border-t border-stone-200 pt-2 text-base font-semibold"><span>Total</span><span>{formatCents((serverQuote ?? local).totalCents, catalog.currency)}</span></div>
-      <p class="mt-2 text-xs text-stone-500">Placing your order does not charge you.</p>
+      <p class="mt-2 text-xs text-stone-500">{demo ? 'Illustrative pricing only.' : 'Placing your order does not charge you.'}</p>
     </div>
     {#if quoteLoading}<p role="status" class="mt-3 text-sm text-stone-600">Confirming the current price…</p>{/if}
     {#if quoteError}<div role="alert" class="mt-3 rounded-xl bg-red-50 p-4 text-sm text-red-700">{quoteError}<button type="button" class="button-secondary mt-2" onclick={goCheckout}>Retry price check</button></div>{/if}
@@ -467,7 +471,9 @@
       <button type="button" class="rounded-lg bg-amber-500 px-4 py-3 font-medium text-stone-900 disabled:opacity-40" disabled={!local.complete || recoveryPending} onclick={goCheckout}>Checkout</button>
     {:else}
       <button type="button" class="rounded-lg border border-stone-300 px-3 py-3 text-sm" disabled={!!cart.pendingOrder} onclick={() => (step = 'cart')}>Back</button>
+      {#if demo}<a class="button-primary" href="/o/sample-receipt-1">Sample receipt ↗</a>{:else}
       <button type="submit" form="checkout" class="rounded-lg bg-amber-500 px-4 py-3 font-medium text-stone-900 disabled:opacity-40" disabled={submitting || (!cart.pendingOrder && (quoteLoading || refreshingPreviews || recoveryPending || !serverQuote?.quoteToken || !serverQuote.complete || (quoteChanged && !acceptedChangedPrice)))}>{submitting ? 'Checking…' : cart.pendingOrder ? 'Retry saved order' : 'Place order'}</button>
+      {/if}
     {/if}
   </div>
 </div>

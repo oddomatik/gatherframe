@@ -158,7 +158,7 @@
     row.files[role] = makeEntry(file); return true;
   }
   async function addFiles(files: FileList | File[], zoneRole: VariantRole | null) {
-    if (running || adding) return;
+    if (data.demo || running || adding) return;
     adding = true; checkingFiles = 0; replaceExisting = false;
     let repeated = 0, skipped = 0;
     try {
@@ -181,7 +181,7 @@
     } finally { adding = false; }
   }
   function clearSelection() {
-    if (running || adding) return;
+    if (data.demo || running || adding) return;
     if (total > done && !confirm('Clear the selected files? Nothing already uploaded will be deleted.')) return;
     for (const row of rows) for (const entry of Object.values(row.files)) releaseEntry(entry);
     rows = []; conflicts = []; replaceExisting = false; selectionNote = ''; previousImport = ''; uploadTags=[]; tagsLocked = false; saveManifest();
@@ -254,7 +254,7 @@
     finally {activeRequests.delete(controller);saveManifest();}
   }
   async function start() {
-    if (running || adding) return;
+    if (data.demo || running || adding) return;
     if (conflicts.length) { toast('Review the overlapping files first.', 'error'); return; }
     running = true; pauseRequested = false; sentBytes=0;speed=0;startedAt=Date.now();
     try {
@@ -282,31 +282,31 @@
 
 {#if previousImport}<p class="mt-4 rounded-xl bg-sky-50 p-3 text-sm text-sky-900">{previousImport}</p>{/if}
 <div class="mt-5 flex flex-wrap items-end gap-4 rounded-2xl border border-stone-200 bg-white p-4">
-  <label class="text-sm">New photos go to<select bind:value={galleryId} onchange={(event) => { const destination = Number(event.currentTarget.value); for (const row of rows) row.galleryId = destination; }} disabled={running || adding} class="mt-1 block rounded-xl border border-stone-300 px-3 py-2">{#each data.galleries as gallery (gallery.id)}<option value={gallery.id}>{gallery.name}{gallery.isIntake ? ' (private)' : ''}</option>{/each}</select></label>
+  <label class="text-sm">New photos go to<select bind:value={galleryId} onchange={(event) => { const destination = Number(event.currentTarget.value); for (const row of rows) row.galleryId = destination; }} disabled={data.demo || running || adding} class="mt-1 block rounded-xl border border-stone-300 px-3 py-2">{#each data.galleries as gallery (gallery.id)}<option value={gallery.id}>{gallery.name}{gallery.isIntake ? ' (private)' : ''}</option>{/each}</select></label>
   <details><summary class="cursor-pointer text-sm">Tags for new photos (optional) · {uploadTags.length} selected</summary><div class="mt-2 max-h-48 overflow-y-auto">{#each tagTree(data.tags) as t(t.id)}<label class="flex items-center gap-2 text-sm p-1"><input type="checkbox" value={t.id} bind:group={uploadTags} onchange={saveManifest} disabled={running||adding||tagsLocked} />{tagPath(data.tags,t.id)}</label>{/each}{#if !data.tags.length}<p class="text-xs">Create project tags on the event page, or tag photos after uploading.</p>{/if}</div></details>
 </div>
 {#if tagsLocked}<p class="mt-2 text-xs text-stone-500">Batch tags are locked for retry.</p>{/if}
 <section class="import-dropzone" aria-label="Import export folder">
   <h2 class="text-lg font-semibold">Add your export folder</h2>
   <p class="mt-2 text-sm text-stone-600"><strong>full/</strong> · <strong>social/</strong> · <strong>raw/</strong><span class="ml-3">Matched by filename.</span></p>
-  <label class="mt-4 inline-block cursor-pointer rounded-xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white">Choose folder<input aria-label="Choose export parent folder" type="file" multiple webkitdirectory disabled={running || adding} class="sr-only" onchange={(event) => onInput(event, null)} /></label>
-  <details class="mt-3 text-xs text-stone-600"><summary class="cursor-pointer">Other folder names</summary><label class="mt-2 block">Unrecognized image folders contain <select bind:value={unsuffixedRole} disabled={running || adding} class="rounded border border-stone-300 bg-white px-2 py-1"><option value="print">full resolution</option><option value="social">social copies</option></select></label><p class="mt-1">Applies to the next selection. Recognized full/, social/, and raw/ folders always use their named version.</p></details>
+  <label class="mt-4 inline-block cursor-pointer rounded-xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white">Choose folder<input aria-label="Choose export parent folder" type="file" multiple webkitdirectory disabled={data.demo || running || adding} class="sr-only" onchange={(event) => onInput(event, null)} /></label>
+  <details class="mt-3 text-xs text-stone-600"><summary class="cursor-pointer">Other folder names</summary><label class="mt-2 block">Unrecognized image folders contain <select bind:value={unsuffixedRole} disabled={data.demo || running || adding} class="rounded border border-stone-300 bg-white px-2 py-1"><option value="print">full resolution</option><option value="social">social copies</option></select></label><p class="mt-1">Applies to the next selection. Recognized full/, social/, and raw/ folders always use their named version.</p></details>
 </section>
 <details class="mt-4"><summary class="cursor-pointer text-sm font-semibold">Add separate folders or files</summary>
 <div class="mt-3 grid gap-3 sm:grid-cols-3">
   {#each zones as { role, label, help } (role)}
-    <section class="rounded-2xl border-2 border-dashed border-stone-300 bg-white p-4 text-center" aria-label={label} ondragover={(event) => event.preventDefault()} ondrop={(event) => { event.preventDefault(); if (!running && !adding && event.dataTransfer?.files) void addFiles(event.dataTransfer.files, role); }}>
+    <section class="rounded-2xl border-2 border-dashed border-stone-300 bg-white p-4 text-center" aria-label={label} ondragover={(event) => event.preventDefault()} ondrop={(event) => { event.preventDefault(); if (!data.demo && !running && !adding && event.dataTransfer?.files) void addFiles(event.dataTransfer.files, role); }}>
       <h2 class="font-semibold">{label}</h2><p class="mt-1 text-xs text-stone-500">{help}</p>
       <div class="mt-4 flex flex-wrap justify-center gap-2">
-        <label class="cursor-pointer rounded-lg bg-stone-900 px-3 py-2 text-xs font-medium text-white">Choose folder<input aria-label={`Choose ${label.toLowerCase()} folder`} type="file" multiple webkitdirectory disabled={running || adding} class="sr-only" onchange={(event) => onInput(event, role)} /></label>
-        <label class="cursor-pointer rounded-lg border border-stone-300 px-3 py-2 text-xs">Choose files<input aria-label={`Choose ${label.toLowerCase()} files`} type="file" multiple disabled={running || adding} class="sr-only" accept={role === 'raw' ? 'image/*,.cr2,.cr3,.nef,.arw,.dng,.raf,.rw2,.orf,.pef,.tif,.tiff,.heic,.xmp,.acr' : 'image/*,.cr2,.cr3,.nef,.arw,.dng,.raf,.rw2,.orf,.pef,.tif,.tiff,.heic'} onchange={(event) => onInput(event, role)} /></label>
+        <label class="cursor-pointer rounded-lg bg-stone-900 px-3 py-2 text-xs font-medium text-white">Choose folder<input aria-label={`Choose ${label.toLowerCase()} folder`} type="file" multiple webkitdirectory disabled={data.demo || running || adding} class="sr-only" onchange={(event) => onInput(event, role)} /></label>
+        <label class="cursor-pointer rounded-lg border border-stone-300 px-3 py-2 text-xs">Choose files<input aria-label={`Choose ${label.toLowerCase()} files`} type="file" multiple disabled={data.demo || running || adding} class="sr-only" accept={role === 'raw' ? 'image/*,.cr2,.cr3,.nef,.arw,.dng,.raf,.rw2,.orf,.pef,.tif,.tiff,.heic,.xmp,.acr' : 'image/*,.cr2,.cr3,.nef,.arw,.dng,.raf,.rw2,.orf,.pef,.tif,.tiff,.heic'} onchange={(event) => onInput(event, role)} /></label>
       </div><p class="mt-3 text-[11px] text-stone-400">Or drop files here</p>
     </section>
   {/each}
 </div>
 </details>
 <details class="mt-4 text-xs text-stone-600"><summary class="cursor-pointer py-2">Import details</summary><ul class="mt-2 space-y-2 pl-4 list-disc"><li>Matching filenames become one photo. Existing collections and links stay intact.</li><li>Missing versions can be added later. Nothing is deleted.</li><li>XMP and ACR companions stay private. Finished JPEGs are what parents see.</li><li>Destination and batch tags apply to new photos only.</li></ul></details>
-{#if inventoryError}<div class="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Could not check saved photos. Your selected files are still here. <button type="button" disabled={running || adding} class="underline" onclick={() => void loadExisting().catch(() => {})}>Check again</button>. Uploading will check again before transferring anything.</div>{/if}
+{#if inventoryError}<div class="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Could not check saved photos. Your selected files are still here. <button type="button" disabled={data.demo || running || adding} class="underline" onclick={() => void loadExisting().catch(() => {})}>Check again</button>. Uploading will check again before transferring anything.</div>{/if}
 {#if adding}<p class="mt-4 rounded-xl bg-sky-50 p-3 text-sm" role="status">Checking selected files… {checkingFiles} checked. Repeated copies are compared automatically.</p>{/if}
 {#if selectionNote}<p class="mt-4 rounded-xl bg-sky-50 p-3 text-sm" role="status">{selectionNote}</p>{/if}
 {#if conflicts.length}
@@ -322,7 +322,7 @@
         <p class="mt-2 break-all text-xs"><strong>Queued folder:</strong> {group.queuedPath}</p>
         <p class="mt-1 break-all text-xs"><strong>Incoming folder:</strong> {group.incomingPath}</p>
         <div class="mt-3 flex flex-wrap gap-2">
-          <button type="button" disabled={running || adding} class="rounded-lg border border-stone-300 px-3 py-2 text-sm" onclick={() => resolveGroup(group.items, false)}>Keep queued folder</button>
+          <button type="button" disabled={data.demo || running || adding} class="rounded-lg border border-stone-300 px-3 py-2 text-sm" onclick={() => resolveGroup(group.items, false)}>Keep queued folder</button>
           <button type="button" disabled={running || adding || !canUseGroup(group.items)} class="rounded-lg border border-stone-300 px-3 py-2 text-sm disabled:opacity-40" onclick={() => resolveGroup(group.items, true)}>Use incoming folder</button>
         </div>
         {#if !canUseGroup(group.items)}<p class="mt-2 text-xs">Some photos have several incoming alternatives. Review those below before choosing an incoming copy.</p>{/if}
@@ -332,7 +332,7 @@
             <div class="mt-3 rounded-lg border border-stone-200 p-3 text-xs">
               <p class="break-all"><strong>Queued:</strong> {queued?.file.webkitRelativePath || queued?.file.name} · {formatBytes(queued?.file.size ?? 0)}</p>
               <p class="mt-1 break-all"><strong>Incoming:</strong> {conflict.file.webkitRelativePath || conflict.file.name} · {formatBytes(conflict.file.size)}</p>
-              <div class="mt-2 flex flex-wrap gap-3"><button type="button" disabled={running || adding} class="underline" onclick={() => useCopy(conflict)}>Use incoming copy</button><button type="button" disabled={running || adding} class="underline" onclick={() => keepBoth(conflict)}>Keep as separate photo</button><button type="button" disabled={running || adding} class="underline" onclick={() => resolveGroup([conflict], false)}>Keep queued copy</button></div>
+              <div class="mt-2 flex flex-wrap gap-3"><button type="button" disabled={data.demo || running || adding} class="underline" onclick={() => useCopy(conflict)}>Use incoming copy</button><button type="button" disabled={data.demo || running || adding} class="underline" onclick={() => keepBoth(conflict)}>Keep as separate photo</button><button type="button" disabled={data.demo || running || adding} class="underline" onclick={() => resolveGroup([conflict], false)}>Keep queued copy</button></div>
             </div>
           {/each}
         </details>
@@ -347,9 +347,9 @@
       <progress aria-label="Upload bytes received" value={receivedBytes} max={totalBytes} class="mt-2 block h-1.5 w-full accent-emerald-700"></progress>
       <p class="mt-2 text-xs text-stone-600">{formatBytes(receivedBytes)} of {formatBytes(totalBytes)} · {formatBytes(remainingBytes)} remaining{#if running && speed>0} · {formatBytes(speed)}/s · about {etaMinutes || 1} min left{/if}</p><p class="mt-1 text-xs text-stone-500">JPEGs first · interrupted transfers resume · files count as transferred after verification.</p>
     </div>
-    <div class="mt-3 flex flex-wrap items-center gap-3"><span class="flex-1"></span><button type="button" class="text-sm underline" disabled={running || adding} onclick={clearSelection}>Clear selection</button></div>
+    <div class="mt-3 flex flex-wrap items-center gap-3"><span class="flex-1"></span><button type="button" class="text-sm underline" disabled={data.demo || running || adding} onclick={clearSelection}>Clear selection</button></div>
     <ul class="mt-3 grid gap-2 sm:grid-cols-2" aria-label="Selected folders">{#each folderSummary as folder (`${folder.path}:${folder.role}`)}<li class="rounded-xl border border-stone-200 bg-white p-3 text-sm"><strong class="break-all">{folder.path}</strong><span class="mt-1 block text-stone-600">{folder.count} {roleLabels[folder.role]} file{folder.count === 1 ? '' : 's'}{#if isSidecar(folder.role)} · Private{/if}</span></li>{/each}</ul>
-    {#if replacing}<div class="mt-3 rounded-xl bg-sky-50 p-3 text-sm"><p>{replacing} versions already uploaded. Identical files are skipped; changed files need your permission.</p><label class="mt-2 flex items-center gap-2 font-medium"><input type="checkbox" bind:checked={replaceExisting} disabled={running || adding} /> Update existing versions in this batch</label><p class="mt-1 text-xs text-sky-800">Replaces changed versions everywhere this photo appears.</p></div>{/if}
+    {#if replacing}<div class="mt-3 rounded-xl bg-sky-50 p-3 text-sm"><p>{replacing} versions already uploaded. Identical files are skipped; changed files need your permission.</p><label class="mt-2 flex items-center gap-2 font-medium"><input type="checkbox" bind:checked={replaceExisting} disabled={data.demo || running || adding} /> Update existing versions in this batch</label><p class="mt-1 text-xs text-sky-800">Replaces changed versions everywhere this photo appears.</p></div>{/if}
     {#if missingFull}<p class="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{missingFull} photos are missing full-resolution files. You can add them later.</p>{/if}
     <details class="mt-4" bind:open={reviewOpen}><summary class="cursor-pointer text-sm font-semibold">Review {rows.length} photos and their versions</summary>
     <div class="mt-3 overflow-x-auto rounded-2xl border border-stone-200 bg-white"><table class="w-full text-left text-sm"><thead><tr class="bg-stone-50 text-xs text-stone-500"><th class="p-3" scope="col">Photo</th>{#each roles as role (role)}<th class="p-3" scope="col">{roleLabels[role]}{#if isSidecar(role)}<span class="mt-1 block font-normal text-violet-700">Private edit file</span>{/if}</th>{/each}</tr></thead><tbody>
@@ -363,14 +363,14 @@
           {#if inventoryReady && hasSidecars(row) && !hasImage(row)}<p class="mt-2 text-xs font-medium text-amber-800">Awaiting a photo · edit files stay private</p>
           {:else if !row.files.print && inventoryReady && !hasExisting(row, 'print')}<p class="mt-2 text-xs font-medium text-amber-800">Awaiting full-resolution file</p>{/if}
           {#if inventoryReady && hasSidecars(row) && !row.files.raw && !hasExisting(row, 'raw')}<p class="mt-1 max-w-52 text-xs text-stone-500">No matching RAW yet. Add it later with the same filename.</p>{/if}
-          {#if found.length > 1 || Object.values(row.files).some((f) => f?.status === 'error')}<button type="button" disabled={running || adding} class="mt-2 text-xs underline" onclick={() => separateRow(row)}>Keep as a separate photo</button>{/if}
-          <button type="button" disabled={running || adding} class="mt-2 block text-xs text-stone-500 underline" onclick={() => skipRow(row)}>Remove from queue</button>
+          {#if found.length > 1 || Object.values(row.files).some((f) => f?.status === 'error')}<button type="button" disabled={data.demo || running || adding} class="mt-2 text-xs underline" onclick={() => separateRow(row)}>Keep as a separate photo</button>{/if}
+          <button type="button" disabled={data.demo || running || adding} class="mt-2 block text-xs text-stone-500 underline" onclick={() => skipRow(row)}>Remove from queue</button>
         </div></div></td>
           {#each roles as role (role)}{@const entry = row.files[role]}<td class="p-3">{#if entry}<div class={`min-w-36 rounded-lg p-2 text-xs ${entry.status === 'error' ? 'bg-red-50 text-red-900' : ['done', 'unchanged'].includes(entry.status) ? 'bg-emerald-50 text-emerald-900' : isSidecar(role) ? 'bg-violet-50' : 'bg-stone-50'}`}><p class="break-all">{entry.file.name}</p><p class="mt-1 text-[10px] text-stone-500">{formatBytes(entry.file.size)}{#if isSidecar(role)} · Private{/if}</p>
             {#if entry.status === 'uploading'}<progress value={entry.progress} max="1" class="mt-2 w-full" aria-label={`Uploading ${entry.file.name}`}></progress><span class="text-xs">{entry.stage ?? 'Uploading'}</span>
             {:else if entry.status === 'error'}<p class="mt-2 break-words">{entry.error}</p>
             {:else if entry.status === 'done' || entry.status === 'unchanged'}<p class="mt-2">✓ {entry.status === 'unchanged' ? 'Unchanged · already uploaded' : 'Transferred'}</p>
-            {:else}<div class="mt-2 flex items-center gap-2">{#if isSidecar(role)}<span class="text-[10px] text-violet-800">{roleLabels[role]} sidecar</span>{:else}<select aria-label={`Version of ${entry.file.name}`} value={role} onchange={(event) => setRole(row, role, event.currentTarget.value as VariantRole)} disabled={running || adding} class="max-w-28 rounded border border-stone-300 text-[10px]"><option value="print">Full resolution</option><option value="social">Social</option><option value="raw">RAW</option></select>{/if}<button type="button" disabled={running || adding} class="ml-auto underline" onclick={() => remove(row, role)}>Remove</button></div>{/if}
+            {:else}<div class="mt-2 flex items-center gap-2">{#if isSidecar(role)}<span class="text-[10px] text-violet-800">{roleLabels[role]} sidecar</span>{:else}<select aria-label={`Version of ${entry.file.name}`} value={role} onchange={(event) => setRole(row, role, event.currentTarget.value as VariantRole)} disabled={data.demo || running || adding} class="max-w-28 rounded border border-stone-300 text-[10px]"><option value="print">Full resolution</option><option value="social">Social</option><option value="raw">RAW</option></select>{/if}<button type="button" disabled={data.demo || running || adding} class="ml-auto underline" onclick={() => remove(row, role)}>Remove</button></div>{/if}
           </div>{:else if hasExisting(row, role)}<span class={`text-xs ${isSidecar(role) ? 'text-violet-700' : 'text-sky-700'}`}>✓ {isSidecar(role) ? 'Saved privately' : 'Already uploaded'}</span>{:else}<span class="text-xs text-stone-400">{!inventoryReady ? 'Not checked' : role === 'print' ? 'Not yet uploaded' : 'Optional · not uploaded'}</span>{/if}</td>{/each}
         </tr>
       {/each}

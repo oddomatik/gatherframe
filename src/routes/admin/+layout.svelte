@@ -1,7 +1,18 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { toast } from '$lib/client/toast.svelte';
   import { page } from '$app/state';
   import Toasts from '$lib/components/Toasts.svelte';
   let { data, children } = $props();
+  onMount(() => {
+    const guard = (event: SubmitEvent) => {
+      if (!data.demo || !(event.target instanceof HTMLFormElement) || event.target.method.toLowerCase() === 'get') return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      toast('This is a read-only demo. Your changes have not been saved.');
+    };
+    document.addEventListener('submit', guard, true);
+    return () => document.removeEventListener('submit', guard, true);
+  });
   const nav = [
     { href: '/admin', label: 'Events' },
     { href: '/admin/visibility', label: 'Visibility' },
@@ -19,7 +30,7 @@
     <aside class="border-b border-stone-200 bg-white md:w-56 md:shrink-0 md:border-b-0 md:border-r">
       <div class="flex items-center justify-between px-4 py-3 md:block">
         <a href="/admin" class="font-semibold">{data.studioName}</a>
-        <form method="post" action="/admin/logout" class="md:mt-1"><button class="text-xs text-stone-500 hover:underline">Sign out</button></form>
+        {#if data.demo}<span class="mt-1 block text-xs text-stone-500">Read-only studio tour</span>{:else}<form method="post" action="/admin/logout" class="md:mt-1"><button class="text-xs text-stone-500 hover:underline">Sign out</button></form>{/if}
       </div>
       <nav class="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:pb-0">
         {#each nav as n (n.href)}
@@ -30,7 +41,7 @@
         {/each}
       </nav>
     </aside>
-    <div class="min-w-0 flex-1 p-4 md:p-6">{@render children()}</div>
+    <div class="min-w-0 flex-1 p-4 md:p-6">{#if data.demo}<p class="mb-4 rounded-lg bg-stone-100 px-4 py-3 text-sm text-stone-600">Explore the sample studio. Saving, uploads and order submission are disabled; figures and orders are illustrative.</p>{/if}{@render children()}</div>
   </div>
 {:else}
   {@render children()}

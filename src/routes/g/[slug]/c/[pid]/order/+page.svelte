@@ -7,6 +7,6 @@
 
 {#if data.gallery && data.catalog}
   {#key data.gallery.publicId}
-  <Builder event={data.event} gallery={data.gallery} photos={data.photos} siblings={data.siblings} catalog={data.catalog} initialPhotoId={data.initialPhotoId} studio={data.studio} venmoAvailable={!!data.venmoHandle} fromFavorites={data.fromFavorites} emailUpdatesAvailable={data.emailUpdatesAvailable} />
+  <Builder demo={data.demo} event={data.event} gallery={data.gallery} photos={data.photos} siblings={data.siblings} catalog={data.catalog} initialPhotoId={data.initialPhotoId} studio={data.studio} venmoAvailable={!!data.venmoHandle} fromFavorites={data.fromFavorites} emailUpdatesAvailable={data.emailUpdatesAvailable} />
   {/key}
 {/if}

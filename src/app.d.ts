@@ -5,6 +5,7 @@ declare global {
     interface Locals {
       admin: AdminUser | null;
       requestId: string;
+      demo?: boolean;
     }
     interface Error {
       message: string;
