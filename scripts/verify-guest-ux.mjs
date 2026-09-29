@@ -155,7 +155,12 @@ async function assertVisible(ids) { await expect.poll(() => visibleIds(page)).to
  await page.reload({waitUntil:'networkidle'});await expect(page.getByRole('button',{name:'Retry saved order',exact:true})).toBeVisible();await page.getByRole('button',{name:'Retry saved order',exact:true}).click();await page.waitForURL('**/o/**');await page.waitForLoadState('networkidle');
  assert.equal(db.prepare('SELECT count(*) n FROM orders').get().n,1);assert.equal(db.prepare('SELECT count(*) n FROM order_items').get().n,3);assert.equal(db.prepare('SELECT count(*) n FROM payments').get().n,0);
  await expect(page.getByRole('region',{name:'Your photo requests'}).getByText('Please keep the full frame.')).toBeVisible();
- const ownerHtml=await (await request(`/admin/orders/${firstOrder.id}`)).text();assert.ok(ownerHtml.includes('Participant name'));assert.ok(ownerHtml.includes('Please keep the full frame.')&&ownerHtml.includes('Customer request'));
+ const deliveryId=db.prepare("INSERT INTO notification_deliveries(event_type,recipient,payload,status,attempts,created_at) VALUES('order.created','parent_email:test@example.invalid',?,'dead',0,?)").run(JSON.stringify({data:{orderId:firstOrder.id}}),new Date().toISOString()).lastInsertRowid;
+ const ownerHtml=await (await request(`/admin/orders/${firstOrder.id}`)).text();
+ assert.match(ownerHtml,/by customer/);assert.doesNotMatch(ownerHtml,/by parent/);
+ assert.match(ownerHtml,/via customer email/);assert.doesNotMatch(ownerHtml,/via parent_email/);
+ db.prepare('DELETE FROM notification_deliveries WHERE id=?').run(deliveryId);
+ assert.ok(ownerHtml.includes('Participant name'));assert.ok(ownerHtml.includes('Please keep the full frame.')&&ownerHtml.includes('Customer request'));
  const sources=await request(`/admin/api/orders/${firstOrder.id}/print-files?purpose=review`);assert.equal(sources.status,200);const sourcePath=path.join(scratch,'sources.zip');await writeFile(sourcePath,Buffer.from(await sources.arrayBuffer()));const pickList=spawnSync('unzip',['-p',sourcePath,'*/pick-list.txt'],{encoding:'utf8'}).stdout;assert.match(pickList,/Customer request: Please keep the full frame/);assert.match(pickList,/Remove the small mark/);
  ok('Favorite siblings deduplicate shared shots, preserve the existing cart and retain per-photo requests across a committed-but-lost order response and reload');
  const tracker=page.getByRole('region',{name:'Order progress'});await expect(tracker.locator('[aria-current="step"]')).toHaveText(/Received/i);

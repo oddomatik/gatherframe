@@ -91,10 +91,10 @@
       <h2 class="font-semibold">Order history</h2>
       <ul class="mt-2 space-y-1 text-sm">
         {#each data.d.events as ev (ev.id)}
-          <li class="flex gap-2"><span class="w-40 shrink-0 text-xs text-stone-500">{new Date(ev.createdAt).toLocaleString()}</span><span>{({photo_preparation:'Photo preparation',special_requests:'Special requests saved',requests_addressed:'Requests addressed',print_masters_approved:'Print masters approved'} as Record<string,string>)[ev.type] ?? ev.type}{ev.data && 'photo' in ev.data ? ` · ${ev.data.photo}` : ''}{ev.data && 'to' in ev.data ? `: ${ev.data.from} → ${ev.data.to}` : ''}{ev.data && 'amountCents' in ev.data ? `: ${formatCents(Number(ev.data.amountCents), o.currency)} ${ev.data.method ?? ''}` : ''} <span class="text-xs text-stone-400">by {ev.actor}</span></span></li>
+          <li class="flex gap-2"><span class="w-40 shrink-0 text-xs text-stone-500">{new Date(ev.createdAt).toLocaleString()}</span><span>{({photo_preparation:'Photo preparation',special_requests:'Special requests saved',requests_addressed:'Requests addressed',print_masters_approved:'Print masters approved'} as Record<string,string>)[ev.type] ?? ev.type}{ev.data && 'photo' in ev.data ? ` · ${ev.data.photo}` : ''}{ev.data && 'to' in ev.data ? `: ${ev.data.from} → ${ev.data.to}` : ''}{ev.data && 'amountCents' in ev.data ? `: ${formatCents(Number(ev.data.amountCents), o.currency)} ${ev.data.method ?? ''}` : ''} <span class="text-xs text-stone-400">by {ev.actor === 'parent' ? 'customer' : ev.actor}</span></span></li>
         {/each}
         {#each data.d.deliveries as d (d.id)}
-          <li class="flex gap-2 text-xs"><span class="w-40 shrink-0 text-stone-500">{new Date(d.createdAt).toLocaleString()}</span><span class={d.status === 'sent' ? 'text-emerald-700' : d.status === 'dead' ? 'text-red-700' : 'text-stone-600'}>notification {d.eventType} via {d.recipient?.split(':')[0]}: {d.status}{d.lastError ? ` (${d.lastError})` : ''}</span></li>
+          <li class="flex gap-2 text-xs"><span class="w-40 shrink-0 text-stone-500">{new Date(d.createdAt).toLocaleString()}</span><span class={d.status === 'sent' ? 'text-emerald-700' : d.status === 'dead' ? 'text-red-700' : 'text-stone-600'}>notification {d.eventType} via {d.recipient?.startsWith('parent_email:') ? 'customer email' : d.recipient?.split(':')[0]}: {d.status}{d.lastError ? ` (${d.lastError})` : ''}</span></li>
         {/each}
       </ul>
     </section>
