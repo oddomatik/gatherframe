@@ -1,7 +1,7 @@
 # Gatherframe
 
-Self-hosted photo galleries for picture days, family sessions and small studios.
-Organize one photograph into several family collections, share private albums,
+Self-hosted photo galleries for events, sessions, portfolios and studios.
+Organize one photograph into several collections, share private albums,
 deliver finished files, and take print orders without giving up your editing workflow.
 
 **Early release:** a working single-studio application, not a multi-tenant SaaS platform.
@@ -11,10 +11,10 @@ Run one application process per database. Managed hosting is a planned service, 
 
 - Photo-first galleries, collection covers, project-defined tags and shareable branches.
 - Lightroom-friendly full-resolution, social and RAW imports; private XMP/ACR companions.
-- Resumable uploads, recoverable sorting, independent photo identity and shared-family membership.
-- Browser-local favorites and “My family,” individual/ZIP downloads and phone sharing preparation.
+- Resumable uploads, recoverable sorting, independent photo identity and shared collection membership.
+- Browser-local favorites and saved collections, individual/ZIP downloads and phone sharing preparation.
 - Configurable print products, order receipts, manual payment records and production/master approval.
-- First-party visibility dashboard for views, favorites, family actions and download types.
+- First-party visibility dashboard for views, favorites, collection saves and download types.
 - Local media storage or optional private Backblaze B2; no external analytics service required.
 
 There is no automatic card processing, print-lab fulfillment, face recognition, multi-tenant account isolation,
@@ -48,6 +48,8 @@ unless intentionally deleting the instance and its data.
 
 No Node on your server? Copy `.env.example` to `.env`, set `APP_SECRET` to `openssl rand -hex 32`
 output, and protect the file with `chmod 600 .env`. Never use an example secret.
+
+Project language is neutral by default; [customize the optional order-reference label](docs/terminology.md) for each project.
 
 ## Demo studio
 

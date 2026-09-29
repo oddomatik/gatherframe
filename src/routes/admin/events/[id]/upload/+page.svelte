@@ -289,7 +289,7 @@
 <section class="import-dropzone" aria-label="Import export folder">
   <h2 class="text-lg font-semibold">Add your export folder</h2>
   <p class="mt-2 text-sm text-stone-600"><strong>full/</strong> · <strong>social/</strong> · <strong>raw/</strong><span class="ml-3">Matched by filename.</span></p>
-  <label class="mt-4 inline-block cursor-pointer rounded-xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white">Choose folder<input aria-label="Choose export parent folder" type="file" multiple webkitdirectory disabled={data.demo || running || adding} class="sr-only" onchange={(event) => onInput(event, null)} /></label>
+  <label class="mt-4 inline-block cursor-pointer rounded-xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white">Choose folder<input aria-label="Choose export root folder" type="file" multiple webkitdirectory disabled={data.demo || running || adding} class="sr-only" onchange={(event) => onInput(event, null)} /></label>
   <details class="mt-3 text-xs text-stone-600"><summary class="cursor-pointer">Other folder names</summary><label class="mt-2 block">Unrecognized image folders contain <select bind:value={unsuffixedRole} disabled={data.demo || running || adding} class="rounded border border-stone-300 bg-white px-2 py-1"><option value="print">full resolution</option><option value="social">social copies</option></select></label><p class="mt-1">Applies to the next selection. Recognized full/, social/, and raw/ folders always use their named version.</p></details>
 </section>
 <details class="mt-4"><summary class="cursor-pointer text-sm font-semibold">Add separate folders or files</summary>
@@ -305,7 +305,7 @@
   {/each}
 </div>
 </details>
-<details class="mt-4 text-xs text-stone-600"><summary class="cursor-pointer py-2">Import details</summary><ul class="mt-2 space-y-2 pl-4 list-disc"><li>Matching filenames become one photo. Existing collections and links stay intact.</li><li>Missing versions can be added later. Nothing is deleted.</li><li>XMP and ACR companions stay private. Finished JPEGs are what parents see.</li><li>Destination and batch tags apply to new photos only.</li></ul></details>
+<details class="mt-4 text-xs text-stone-600"><summary class="cursor-pointer py-2">Import details</summary><ul class="mt-2 space-y-2 pl-4 list-disc"><li>Matching filenames become one photo. Existing collections and links stay intact.</li><li>Missing versions can be added later. Nothing is deleted.</li><li>XMP and ACR companions stay private. Finished JPEGs are what visitors see.</li><li>Destination and batch tags apply to new photos only.</li></ul></details>
 {#if inventoryError}<div class="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Could not check saved photos. Your selected files are still here. <button type="button" disabled={data.demo || running || adding} class="underline" onclick={() => void loadExisting().catch(() => {})}>Check again</button>. Uploading will check again before transferring anything.</div>{/if}
 {#if adding}<p class="mt-4 rounded-xl bg-sky-50 p-3 text-sm" role="status">Checking selected files… {checkingFiles} checked. Repeated copies are compared automatically.</p>{/if}
 {#if selectionNote}<p class="mt-4 rounded-xl bg-sky-50 p-3 text-sm" role="status">{selectionNote}</p>{/if}

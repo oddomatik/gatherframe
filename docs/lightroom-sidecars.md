@@ -29,7 +29,7 @@ photos, or change covers. Importing a later sidecar updates the private metadata
 only after accepting replacement.
 
 Sidecars are stored separately from downloadable image variants. They use the
-same local/B2/B2-with-local-copy setting as other new uploads. Parent pages,
+same local/B2/B2-with-local-copy setting as other new uploads. Guest pages,
 photo links, and parent ZIP downloads do not include this private metadata or
 the companion files. XMP is bounded and parsed for a small metadata allowlist;
 unsupported or unsafe metadata produces a private warning while preserving the
@@ -40,7 +40,7 @@ original companion. ACR is preserved as opaque bytes, not interpreted.
 Open a photo in the event organizer and choose **Download RAW + sidecars**.
 The private archive contains the current RAW and its available XMP/ACR files,
 with the same basename and original file contents. An image-only download for
-parents does not include companions. A missing RAW must be uploaded before a
+visitors does not include companions. A missing RAW must be uploaded before a
 RAW archive is available.
 
 ## What stays in Lightroom
@@ -48,10 +48,10 @@ RAW archive is available.
 The app does not develop RAW files or apply Adobe adjustment recipes. Your
 finished full-resolution JPEG remains the print and gallery authority. Updating
 XMP does not change that JPEG or regenerate its appearance. Re-export and upload
-the JPEG to change what parents see. Keep Lightroom catalog backups as well as
+the JPEG to change what visitors see. Keep Lightroom catalog backups as well as
 your originals.
 
 Existing original-file downloads remain byte-for-byte uploads: this feature
 does not scrub GPS or keywords already embedded in your exported JPEG/RAW.
 Keep private tags in sidecars/catalog and use suitable metadata export settings
-for parent-facing JPEGs.
+for guest-facing JPEGs.

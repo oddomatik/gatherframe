@@ -33,7 +33,7 @@ export const actions: Actions = {
     return { ok: 'Settings saved' };
   },
   test: async () => {
-    emitDomainEvent('test', { orderId: 0, orderNumber: 'PO-TEST-0000', eventName: 'Test event', subjectName: 'Test Child', customerName: 'Test Parent', email: null, phone: '555-0100', totalCents: 2000, currency: getSettings().currency, status: 'new', lines: ['1x Standard package (8x10: img_0001, 5x7: img_0002, wallet: img_0001 ×4)'], adminUrl: `${env.publicOrigin}/admin/orders`, statusUrl: `${env.publicOrigin}/o/test`, venmoUrl: null, paymentInstructions: '', notes: null });
+    emitDomainEvent('test', { orderId: 0, orderNumber: 'PO-TEST-0000', eventName: 'Test event', subjectName: 'Sample reference', customerName: 'Sample customer', email: null, phone: '555-0100', totalCents: 2000, currency: getSettings().currency, status: 'new', lines: ['1x Standard package (8x10: img_0001, 5x7: img_0002, wallet: img_0001 ×4)'], adminUrl: `${env.publicOrigin}/admin/orders`, statusUrl: `${env.publicOrigin}/o/test`, venmoUrl: null, paymentInstructions: '', notes: null });
     await deliverPending();
     const last = db.select().from(schema.notificationDeliveries).orderBy(desc(schema.notificationDeliveries.id)).limit(5).all();
     const failed = last.filter((d) => d.eventType === 'test' && d.status !== 'sent');

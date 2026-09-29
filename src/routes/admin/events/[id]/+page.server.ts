@@ -1,3 +1,4 @@
+import { normalizeOrderReferenceLabel } from '$shared/terminology';
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { getEvent, getGallery, listGalleries, listPhotos, listEventPhotos, renameGallery, rotateSlug, setGalleryCover, updateEvent, photoEventId } from '$server/events';
@@ -64,7 +65,7 @@ export const actions: Actions = {
     const ev = load_(Number(e.params.id)); const f = await e.request.formData();
     try {
       const result = addPhotosToCollections(ev.id, f.getAll('photoId').map(Number), f.getAll('targetId').map(Number));
-      return { ok: `${result.count} photo${result.count === 1 ? '' : 's'} added to ${result.collections} collection${result.collections === 1 ? '' : 's'}. Other children’s collections are unchanged.`, organized: true };
+      return { ok: `${result.count} photo${result.count === 1 ? '' : 's'} added to ${result.collections} collection${result.collections === 1 ? '' : 's'}. Other collection memberships are unchanged.`, organized: true };
     } catch (err) { return fail(400, { error: err instanceof Error ? err.message : 'Could not add photos to collections.' }); }
   },
   setShootDay: async (e) => {
@@ -92,7 +93,7 @@ export const actions: Actions = {
         expiresAt = new Date(timestamp).toISOString();
       }
       updateEvent(ev.id, {
-        name: String(f.get('name') ?? ev.name).trim() || ev.name, subjectLabel: ev.subjectLabel,
+        name: String(f.get('name') ?? ev.name).trim() || ev.name, subjectLabel: f.has('subjectLabel') ? normalizeOrderReferenceLabel(String(f.get('subjectLabel') ?? '')) : ev.subjectLabel,
         tagline: f.has('tagline') ? String(f.get('tagline') ?? '').trim().slice(0, 180) || null : ev.tagline,
         collectionCoverPolicy: coverPolicy,
         eventDate: String(f.get('eventDate') ?? '') || null, expiresAt,
@@ -131,7 +132,7 @@ export const actions: Actions = {
   setCover: async (e) => {
     if (!e.locals.admin) throw error(401, 'Please sign in first');
     const f = await e.request.formData(); const g = ownGallery(Number(e.params.id), Number(f.get('galleryId')));
-    if (g.isIntake) return fail(400, { error: 'Choose a child collection.' });
+    if (g.isIntake) return fail(400, { error: 'Choose a collection.' });
     const photoId = f.get('photoId') === '' ? null : Number(f.get('photoId'));
     if (!f.has('photoId') || (photoId !== null && (!Number.isSafeInteger(photoId) || photoId <= 0))) return fail(400, { error: 'Choose a photo or use automatic cover.' });
     return setGalleryCover(g.id, photoId) ? { ok: photoId === null ? 'Automatic cover restored.' : 'Cover pinned.' } : fail(400, { error: 'Choose a ready photo from this collection.' });

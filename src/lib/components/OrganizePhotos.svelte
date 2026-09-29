@@ -53,7 +53,7 @@
   function create() {
     if(locked||!active.length)return;
     let name=newName.trim();
-    if(!name){let n=1;while(targets.some(t=>t.name===`Kid ${String(n).padStart(3,'0')}`))n++;name=`Kid ${String(n).padStart(3,'0')}`;}
+    if(!name){let n=1;while(targets.some(t=>t.name===`Collection ${String(n).padStart(3,'0')}`))n++;name=`Collection ${String(n).padStart(3,'0')}`;}
     if(name.length>120)return;
     const cover=photos.find(p=>active.includes(p.id)&&p.renditionStatus==='ready');
     targets.push({key:clientUuid(),name,photoIds:[...active],coverId:cover?.id??null,coverHash:cover?.renditionHash??null});
@@ -102,7 +102,7 @@
 
 <svelte:window onbeforeunload={e=>{if(hasChanges||saving){e.preventDefault();e.returnValue='';}}}/>
 <dialog bind:this={dialog} aria-labelledby="organize-heading" oncancel={e=>{e.preventDefault();cancel();}} class="m-auto flex max-h-[95dvh] w-[min(1180px,96vw)] flex-col overflow-hidden rounded-2xl border-0 bg-stone-50 p-0 shadow-xl backdrop:bg-black/65">
-  <header class="shrink-0 border-b border-stone-200 bg-white p-4 sm:px-6"><div class="flex items-start gap-3"><div><h2 id="organize-heading" class="text-xl font-semibold">Who’s in these photos?</h2><p class="mt-1 text-sm text-stone-600">Add to one or more collections.</p></div><button type="button" onclick={cancel} disabled={saving} aria-label="Close sorting window" class="ml-auto rounded-lg border border-stone-300 px-3 py-2 text-sm">Close</button></div></header>
+  <header class="shrink-0 border-b border-stone-200 bg-white p-4 sm:px-6"><div class="flex items-start gap-3"><div><h2 id="organize-heading" class="text-xl font-semibold">Organize photos</h2><p class="mt-1 text-sm text-stone-600">Add to one or more collections.</p></div><button type="button" onclick={cancel} disabled={saving} aria-label="Close sorting window" class="ml-auto rounded-lg border border-stone-300 px-3 py-2 text-sm">Close</button></div></header>
   <div class="min-h-0 overflow-y-auto p-4 sm:p-6">
     <div class="grid items-start gap-5 lg:grid-cols-[1fr_320px]">
       <section bind:this={photoPanel} aria-label="Photos in this sorting batch" class="min-w-0">
@@ -122,17 +122,17 @@
           {/each}
         </div>
       </section>
-      <section bind:this={collectionPanel} aria-label="Choose child collections" class="order-first rounded-xl border border-stone-200 bg-white p-4 lg:sticky lg:top-0 lg:order-last">
+      <section bind:this={collectionPanel} aria-label="Choose collections" class="order-first rounded-xl border border-stone-200 bg-white p-4 lg:sticky lg:top-0 lg:order-last">
         <div class="flex items-center justify-between gap-2"><h3 class="text-sm font-semibold">Add to collections</h3>{#if visibleTargets.length}<button type="button" class="text-xs underline" disabled={locked} onclick={()=>browsingKey=visibleTargets[0].key}>Browse</button>{/if}</div>
         <p class="mt-1 text-xs text-stone-600">For {active.length} selected photo{active.length===1?'':'s'}.</p>
         <button type="button" class="mt-2 text-xs underline lg:hidden" onclick={()=>photoPanel.scrollIntoView({block:'start'})}>Choose a different subset of photos ↓</button>
         <form class="mt-3 rounded-lg bg-amber-50 p-3" onsubmit={e=>{e.preventDefault();create();}}>
-          <label for="new-child-collection" class="text-xs font-semibold">New child collection</label>
-          <input id="new-child-collection" bind:value={newName} maxlength="120" disabled={locked} placeholder="Name optional — e.g. Kid 001" class="mt-1 w-full min-w-0 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm" />
+          <label for="new-child-collection" class="text-xs font-semibold">New collection</label>
+          <input id="new-child-collection" bind:value={newName} maxlength="120" disabled={locked} placeholder="Name optional — e.g. Collection 001" class="mt-1 w-full min-w-0 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm" />
           <button disabled={locked||!active.length} class="mt-2 w-full rounded-lg bg-stone-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40">+ Create & assign selected</button>
-          <p class="mt-2 text-[11px] text-stone-600">Blank name → Kid 001, Kid 002…</p>
+          <p class="mt-2 text-[11px] text-stone-600">Blank name → Collection 001, Collection 002…</p>
         </form>
-        {#if targets.length>6}<input type="search" aria-label="Find child collection" bind:value={search} placeholder="Find collection…" class="mt-3 w-full rounded-lg border border-stone-300 p-2 text-sm" />{/if}
+        {#if targets.length>6}<input type="search" aria-label="Find collection" bind:value={search} placeholder="Find collection…" class="mt-3 w-full rounded-lg border border-stone-300 p-2 text-sm" />{/if}
         <div class="mt-3 max-h-[45dvh] space-y-2 overflow-y-auto">
           {#each visibleTargets as t (t.key)}
             {@const n=matching(t)}
@@ -145,7 +145,7 @@
             </div>
           {/each}
         </div>
-        {#if !targets.length}<p class="mt-3 text-xs text-stone-500">Create your first child’s collection above.</p>{/if}
+        {#if !targets.length}<p class="mt-3 text-xs text-stone-500">Create your first collection above.</p>{/if}
         {#if hasChanges}<p class="mt-3 text-xs text-stone-500">Unsaved changes</p>{/if}
       </section>
     </div>

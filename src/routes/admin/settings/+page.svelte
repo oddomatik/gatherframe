@@ -14,7 +14,7 @@
     <div class="mt-2 grid gap-3 sm:grid-cols-2">
       <label class="text-xs">Studio name<input name="studioName" value={s.studioName} class={input} /></label>
       <label class="text-xs">Photographer name<input name="photographerName" value={s.photographerName} class={input} /></label>
-      <label class="text-xs">Contact line shown to parents<input name="contactLine" value={s.contactLine} placeholder="brian@example.com · 555-0100" class={input} /></label>
+      <label class="text-xs">Public contact line<input name="contactLine" value={s.contactLine} placeholder="studio@example.com · 555-0100" class={input} /></label>
       <label class="text-xs">Your email (order notifications)<input name="adminEmail" type="email" value={s.adminEmail} class={input} /></label>
       <label class="text-xs">Currency<input name="currency" value={s.currency} class={input} /></label>
       <label class="text-xs">Order number time zone<input name="orderTz" value={s.orderTz} class={input} /></label>

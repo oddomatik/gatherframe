@@ -112,7 +112,7 @@ try {
   page.on('dialog', dialog => dialog.accept());
   await page.goto(base + eventPath + '/upload', { waitUntil: 'networkidle' });
   await expect(page.getByRole('heading', { name: 'Upload photos', exact: true })).toBeVisible();
-  const primary = page.getByLabel(/^(Choose export parent folder|Choose a common parent folder)$/);
+  const primary = page.getByLabel(/^(Choose export root folder|Choose a common parent folder)$/);
 
   await page.getByLabel('Choose full resolution files', { exact: true }).setInputFiles(Array.from({length:15},(_,i)=>({name:`PROGRESS_${i+1}.jpg`,mimeType:'image/jpeg',buffer:full})));
   await waitForPlan(15,15);

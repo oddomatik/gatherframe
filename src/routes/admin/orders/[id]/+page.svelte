@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { orderReferenceLabel } from '$shared/terminology';
   import { enhance } from '$app/forms';
   import Fulfillment from '$lib/components/Fulfillment.svelte';
   import SheetDiagram from '$lib/components/SheetDiagram.svelte';
@@ -24,7 +25,7 @@
   {#if data.d.paidCents >= o.totalCents}<span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">Paid</span>{:else}<span class="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">{formatCents(due, o.currency)} due</span>{/if}
   <span class="text-sm text-stone-500">{data.d.event.name} · {new Date(o.createdAt).toLocaleString()}</span>
   {#if data.production.ready && (data.work.reviewComplete || ['printed','delivered'].includes(o.status))}<a href={`/admin/api/orders/${o.id}/print-files`} data-sveltekit-reload class="ml-auto rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm">Download print files</a>{:else}<span class="ml-auto rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900">Print preparation needed</span>{/if}
-  <button type="button" class="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm" onclick={() => copy(data.statusUrl)}>Copy parent link</button>
+  <button type="button" class="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm" onclick={() => copy(data.statusUrl)}>Copy order link</button>
 </div>
 
 <Fulfillment work={data.work} orderId={o.id} status={o.status} actionKey={data.workflowKey} filesReady={data.production.ready} />
@@ -124,8 +125,8 @@
       <label class="mt-2 block text-xs">Name<input name="customerName" value={o.customerName} class="mt-0.5 w-full rounded border border-stone-300 px-2 py-1" /></label>
       <label class="mt-2 block text-xs">Phone<input name="phone" value={o.phone ?? ''} class="mt-0.5 w-full rounded border border-stone-300 px-2 py-1" />{#if o.phone}<a href={`tel:${o.phone}`} class="text-xs underline">call</a>{/if}</label>
       <label class="mt-2 block text-xs">Email<input name="email" value={o.email ?? ''} class="mt-0.5 w-full rounded border border-stone-300 px-2 py-1" /></label>
-      <label class="mt-2 block text-xs">For ({data.d.event.subjectLabel})<input name="subjectName" value={o.subjectName ?? ''} class="mt-0.5 w-full rounded border border-stone-300 px-2 py-1" /></label>
-      {#if o.notes}<p class="mt-2 text-xs italic text-stone-600">Parent's note: "{o.notes}"</p>{/if}
+      <label class="mt-2 block text-xs">{orderReferenceLabel(data.d.event.subjectLabel)}<input name="subjectName" value={o.subjectName ?? ''} class="mt-0.5 w-full rounded border border-stone-300 px-2 py-1" /></label>
+      {#if o.notes}<p class="mt-2 text-xs italic text-stone-600">Customer note: "{o.notes}"</p>{/if}
       <button class="mt-2 rounded-lg border border-stone-300 px-3 py-1.5 text-sm">Save contact</button>
     </form>
 

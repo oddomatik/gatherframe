@@ -27,7 +27,7 @@ it('starts empty; arbitrary nesting and stable links survive rename/reparent; cy
  expect(()=>saveTag(event.id,{...root,parentId:leaf.id})).toThrow(/descendant/);
  const moved=saveTag(event.id,{...leaf,name:'Jumping',parentId:otherRoot.id});expect(moved.publicId).toBe(leaf.publicId);expect(tagPath(listTags(event.id),leaf.id)).toBe('Activities / Jumping');
  expect(()=>saveTag(event.id,{name:'jumping',parentId:otherRoot.id,shared:true})).toThrow(/already/);
- expect(()=>deleteTag(event.id,otherRoot.id)).toThrow(/child/);
+ expect(()=>deleteTag(event.id,otherRoot.id)).toThrow(/nested/);
 });
 it('enforces event boundaries and all-or-nothing assignment without changing photos or collections',()=>{
  const t=saveTag(event.id,{name:'Group 7',shared:true}),foreign=saveTag(other.id,{name:'Foreign',shared:true});

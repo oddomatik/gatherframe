@@ -25,7 +25,7 @@
     {#each ticket.work.photos.filter(p=>p.parentNote) as p}<p class="mt-2 whitespace-pre-wrap text-sm"><strong>{p.stem} · Customer request:</strong> {p.parentNote}</p>{/each}
     {#each ticket.work.photos.filter(p=>p.note) as p}<p class="mt-2 whitespace-pre-wrap text-sm"><strong>{p.stem}:</strong> {p.note}</p>{/each}
     {#if ticket.work.extraRequests}<p class="mt-3 whitespace-pre-wrap text-sm"><strong>Additional requests:</strong> {ticket.work.extraRequests}</p>{/if}
-    {#if o.notes}<p class="mt-4 text-sm"><strong>Parent note:</strong> {o.notes}</p>{/if}{#if o.adminNotes}<p class="mt-2 text-sm"><strong>My note:</strong> {o.adminNotes}</p>{/if}
+    {#if o.notes}<p class="mt-4 text-sm"><strong>Customer note:</strong> {o.notes}</p>{/if}{#if o.adminNotes}<p class="mt-2 text-sm"><strong>My note:</strong> {o.adminNotes}</p>{/if}
     <p class="mt-5 border-t pt-3 text-sm">☐ Packed &nbsp;&nbsp; ☐ Delivered &nbsp;&nbsp; Date: ___________________</p>
   </article>
 {/each}

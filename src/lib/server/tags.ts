@@ -21,7 +21,7 @@ export function saveTag(eventId: number, input: { id?: number; name: string; par
   })();
 }
 export function deleteTag(eventId: number, id: number) {
-  return sqlite.transaction(() => { ownTag(eventId,id); if (listTags(eventId).some(t => t.parentId === id)) throw new Error('Move or remove child tags first.'); sqlite.prepare('DELETE FROM tags WHERE id=?').run(id); })();
+  return sqlite.transaction(() => { ownTag(eventId,id); if (listTags(eventId).some(t => t.parentId === id)) throw new Error('Move or remove nested tags first.'); sqlite.prepare('DELETE FROM tags WHERE id=?').run(id); })();
 }
 export function validateTagIds(eventId: number, ids: number[]) {
   if (!Array.isArray(ids) || ids.length > 100 || ids.some(id => !Number.isSafeInteger(id) || id < 1)) throw new Error('Choose valid project tags.');

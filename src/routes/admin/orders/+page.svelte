@@ -22,7 +22,7 @@
   <label>Preparation<select name="work" class="mt-1 block rounded-lg border border-stone-300 px-2 py-1.5"><option value="">All</option>{#each ['review','touchups','ready'] as stage}<option value={stage} selected={data.filter.work===stage}>{FULFILLMENT_LABELS[stage as keyof typeof FULFILLMENT_LABELS]}</option>{/each}</select></label>
   <label>Event<select name="event" class="mt-1 block rounded-lg border border-stone-300 px-2 py-1.5"><option value="">All</option>{#each data.events as ev (ev.id)}<option value={ev.id} selected={data.filter.eventId === ev.id}>{ev.name}</option>{/each}</select></label>
   <label class="flex items-center gap-1 pb-2"><input type="checkbox" name="unpaid" value="1" checked={data.filter.unpaid} /> Unpaid only</label>
-  <label>Search<input name="q" value={data.filter.q ?? ''} placeholder="name, number, child, phone" class="mt-1 block rounded-lg border border-stone-300 px-2 py-1.5" /></label>
+  <label>Search<input name="q" value={data.filter.q ?? ''} placeholder="name, number, reference, phone" class="mt-1 block rounded-lg border border-stone-300 px-2 py-1.5" /></label>
   <button class="rounded-lg bg-stone-900 px-3 py-2 text-white">Filter</button>
   <a href="/admin/orders" class="px-2 py-2 underline">Reset</a>
 </form>

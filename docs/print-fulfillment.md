@@ -12,7 +12,7 @@ Open **Orders → an order → Print preparation**. Payment collection remains s
 ## Details
 
 - Orders can be filtered by Review, Touch-ups, or Ready to print.
-- Extra requests and per-photo notes are private owner information. They appear on owner job tickets and ZIP pick lists, never the parent order page.
+- Extra requests and per-photo notes are private owner information. They appear on owner job tickets and ZIP pick lists, never the customer order page.
 - Source availability and exact approved master checks apply to both source and production ZIPs. No social-image fallback is used for printing.
 - Reopening a completed/canceled order preserves notes but clears its preparation approvals. Canceled orders cannot export print files.
 - Saves use revision checks and durable request receipts: a stale tab cannot overwrite newer work, and retrying a lost response cannot apply a transition twice.

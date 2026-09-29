@@ -52,7 +52,7 @@
   {#if data.isAdminPreview}
     <div class="bg-amber-100 px-3 py-1 text-center text-xs text-amber-900">Photographer preview · your admin access bypasses passwords and publishing restrictions.</div>
   {/if}
-  {#if data.event.parentMessage}<aside class="mx-auto mt-5 max-w-5xl px-4"><div class="notice whitespace-pre-line text-sm"><p class="eyebrow mb-2">A note from your photographer</p>{data.event.parentMessage}</div></aside>{/if}
+  {#if data.event.parentMessage}<aside class="mx-auto mt-5 max-w-5xl px-4"><div class="notice whitespace-pre-line text-sm"><p class="eyebrow mb-2">A note from the studio</p>{data.event.parentMessage}</div></aside>{/if}
   {@render children()}
 {/if}
 

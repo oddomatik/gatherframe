@@ -112,7 +112,7 @@ try {
   page.on('dialog', dialog => dialog.accept());
   await page.goto(base + eventPath + '/upload', { waitUntil: 'networkidle' });
   await expect(page.getByRole('heading', { name: 'Upload photos', exact: true })).toBeVisible();
-  const primary = page.getByLabel(/^(Choose export parent folder|Choose a common parent folder)$/);
+  const primary = page.getByLabel(/^(Choose export root folder|Choose a common parent folder)$/);
 
   // Actual filesystem directory selection, not synthetic JS File objects: this
   // exercises Chromium's webkitRelativePath handling that caused the regression.

@@ -6,7 +6,7 @@ This is a description of the software, not a ready-made legal privacy notice for
 - Photos, original filenames, capture metadata and private XMP/ACR sidecars may be sensitive.
 - Studio accounts, sessions, orders, customer contact details, requests and settings live in SQLite.
 - Gallery links act as access capabilities; optional passwords add a separate gate. Protect invitation links.
-- Favorites and “My family” selections are device/browser-local. First-party activity separately records
+- Favorites and “Saved collections” selections are device/browser-local. First-party activity separately records
   add/remove actions and project-scoped pseudonymous visitors, retained for 90 days.
 - Visibility records exclude names, emails, IPs and referral URLs. Older databases may still have historic
   download-log fields; reverse proxies and application error logs can also contain URLs or addresses.

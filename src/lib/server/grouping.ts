@@ -29,7 +29,7 @@ export function addPhotosToCollections(eventId: number, photoIds: number[], targ
     const ids = [...new Set(photoIds)], targets = [...new Set(targetIds)];
     if (!ids.length || ids.length > 5000 || ids.some((id) => !Number.isSafeInteger(id) || id < 1)) throw new GroupingError('Choose between 1 and 5,000 photos.');
     if (!targets.length || targets.length > 200 || targets.some((id) => !Number.isSafeInteger(id) || id < 1)) throw new GroupingError('Choose between 1 and 200 collections.');
-    for (const target of targets) if (collection(eventId, target).is_intake) throw new GroupingError('Choose child collections. To return photos to the private tray, use Move.');
+    for (const target of targets) if (collection(eventId, target).is_intake) throw new GroupingError('Choose collections. To return photos to the private tray, use Move.');
     const valid = sqlite.prepare('SELECT p.id FROM photos p JOIN galleries g ON g.id = p.gallery_id WHERE p.id = ? AND g.event_id = ?');
     for (const id of ids) if (!valid.get(id, eventId)) throw new GroupingError('Every selected photo must belong to this event. Nothing was changed.');
     const add = sqlite.prepare('INSERT OR IGNORE INTO gallery_photos (gallery_id, photo_id) VALUES (?, ?)');
@@ -76,7 +76,7 @@ export function organizePhotos(input: { eventId: number; photoIds: number[]; tar
 export function mergeCollections(eventId: number, sourceId: number, targetId: number): number {
   return sqlite.transaction(() => {
     const source = collection(eventId, sourceId); collection(eventId, targetId);
-    if (sourceId === targetId || source.is_intake) throw new GroupingError('Choose two different child collections.');
+    if (sourceId === targetId || source.is_intake) throw new GroupingError('Choose two different collections.');
     const ids = sqlite.prepare('SELECT photo_id FROM gallery_photos WHERE gallery_id = ?').all(sourceId) as { photo_id: number }[];
     if (ids.length) organizePhotos({ eventId, photoIds: ids.map((p) => p.photo_id), sourceId, targetId, mode: 'add' });
     // Archived membership is retained for restoration and old photographer context, but never parent-visible.

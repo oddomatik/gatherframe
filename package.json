@@ -14,7 +14,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "test:e2e": "node scripts/verify-guest-ux.mjs && node scripts/verify-visibility.mjs && node scripts/verify-mobile-gallery.mjs && node scripts/verify-demo.mjs",
+    "test:e2e": "node scripts/verify-guest-ux.mjs && node scripts/verify-visibility.mjs && node scripts/verify-mobile-gallery.mjs && node scripts/verify-demo.mjs && node scripts/verify-collection-browser.mjs",
     "test:tools": "node --test scripts/*.test.mjs scripts/*.test.cjs",
     "test:smoke": "node scripts/verify-self-host.mjs",
     "check:repo": "node scripts/check-repo.mjs",
@@ -55,6 +55,6 @@
     "vite": "^6.3.6",
     "vitest": "^3.2.4"
   },
-  "description": "Self-hosted photo galleries, family collections, downloads and print-order workflow.",
+  "description": "Self-hosted photo galleries, collections, downloads and print-order workflow.",
   "license": "AGPL-3.0-only"
 }

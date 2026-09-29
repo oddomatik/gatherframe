@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
+  import { orderReferenceLabel } from '$shared/terminology';
   import { goto } from '$app/navigation';
   import BottomSheet from '$lib/components/BottomSheet.svelte';
   import PreviewFrame from '$lib/components/PreviewFrame.svelte';
@@ -239,7 +240,7 @@
     } finally { submitting = false; }
   }
 
-  const label = $derived(event.subjectLabel || 'child');
+  const label = $derived(orderReferenceLabel(event.subjectLabel));
 </script>
 
 <div class="mx-auto max-w-2xl px-4 pb-32 pt-4" inert={!loaded}>
@@ -276,7 +277,7 @@
         {#if !favoritesLoading&&!favoritePhotos.length}<p class="notice mt-3">No saved favorites are available in this browser. Go back to the photos and tap a heart, or choose prints below.</p>{/if}
       </section>
     {/if}
-    <p class="mt-1 text-sm text-stone-600">Pick a package or single prints, then choose which photo goes on each print. Pick your favorites, including friends and siblings.</p>
+    <p class="mt-1 text-sm text-stone-600">Choose a package or single prints, then choose a photo for each print.</p>
 
     {#if packages.length}
       <h2 class="mt-6 mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">Packages</h2>
@@ -395,7 +396,7 @@
     <section class="mt-4 grid gap-3 sm:grid-cols-2" aria-label="Payment options">
       <div class="rounded-xl border border-emerald-300 bg-emerald-50 p-4">
         <h2 class="font-semibold text-emerald-950">Pay cash in person</h2>
-        <p class="mt-1 text-sm text-emerald-900">Place your order now. Pay the photographer in person.</p>
+        <p class="mt-1 text-sm text-emerald-900">Place your order now. Pay the studio in person.</p>
       </div>
       {#if venmoAvailable}
         <div class="rounded-xl border border-sky-200 bg-sky-50 p-4">
@@ -419,15 +420,15 @@
       </div>
       <p class="-mt-1 text-xs text-stone-500">We need one way to reach you. If email receipts are available, we will send one to the address you provide. Your confirmation link will always be available after ordering.</p>
       {#if emailUpdatesAvailable}<label class="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" bind:checked={cart.customer.emailUpdates} />Email me when my prints are printed or delivered</label>{/if}
-      <label class="block text-sm">{label[0].toUpperCase() + label.slice(1)} name(s)
-        <input class="mt-1 w-full rounded-lg border border-stone-300 px-3 py-3 text-base" bind:value={cart.customer.subjectName} placeholder="Who are these lovely photos for?" />
+      <label class="block text-sm">{label} <span class="text-stone-500">(optional)</span>
+        <input class="mt-1 w-full rounded-lg border border-stone-300 px-3 py-3 text-base" bind:value={cart.customer.subjectName} placeholder="A name, project, or reference to help identify this order" />
       </label>
-      <label class="block text-sm">Notes for the photographer
+      <label class="block text-sm">Notes for the studio
         <textarea class="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-base" rows="2" bind:value={cart.customer.notes}></textarea>
       </label>
       <details class="rounded-xl border border-stone-200 p-3" open={Object.values(cart.customer.photoRequests??{}).some(Boolean)}>
         <summary class="cursor-pointer py-2 font-medium">Requests for specific photos (optional)</summary>
-        <p class="mt-2 text-sm text-stone-600">For example, a touch-up or crop preference. The photographer reviews requests before printing.</p>
+        <p class="mt-2 text-sm text-stone-600">For example, a touch-up or crop preference. The studio reviews requests before printing.</p>
         {#each orderedPhotoIds as id (id)}<div class="mt-3 flex items-start gap-3">{#if photoIndex[id]}<img src={photoUrl(photoIndex[id],'thumb')} alt="" class="h-28 w-24 shrink-0 rounded-lg bg-stone-50 object-contain" loading="lazy" />{/if}<label class="min-w-0 flex-1 text-sm">Request for Photo {id}<textarea maxlength="500" rows="3" class="mt-1 block w-full rounded-lg border border-stone-300 p-2" bind:value={()=>requestFor(id), value=>setRequest(id,value)}></textarea></label></div>{/each}
       </details>
       <input type="text" name="website" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
@@ -486,7 +487,7 @@
     <div class="mt-3 flex flex-wrap gap-2"><button type="button" class="button-secondary" onclick={() => sharePhoto(pickerInspect!, event.slug)}>Share photo ↗</button><a href={photoShareUrl(pickerInspect, event.slug)} target="_blank" rel="noopener" class="button-quiet">Open link</a><button type="button" class="button-primary ml-auto" onclick={() => assign(pickerInspect!.id)}>Use this photo</button></div>
   {:else}
     {#if siblings.length > 1}
-      <p class="mb-2 text-xs text-stone-600">Pick a collection by its cover photo. Friends and siblings can be in the same photo.</p>
+      <p class="mb-2 text-xs text-stone-600">Choose a collection by its cover. A photo can appear in more than one collection.</p>
       <div class="mb-3 flex gap-2 overflow-x-auto pb-2">
         {#each siblings as g, i (g.publicId)}
           <button type="button" class={`w-20 shrink-0 overflow-hidden rounded-xl border-2 text-xs ${pickerTab === g.publicId ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-200 bg-white'}`} aria-pressed={pickerTab === g.publicId} aria-label={`Collection ${i + 1}, ${g.photoCount} photos`} onclick={() => { pickerTab = g.publicId; void ensureGallery(g.publicId); }}>{#if g.coverUrl}<img src={g.coverUrl} class="h-20 w-full object-cover" alt="" loading="lazy" />{/if}<span class="block py-2">{g.photoCount} photos</span></button>

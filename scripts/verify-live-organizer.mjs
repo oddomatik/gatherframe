@@ -74,7 +74,7 @@ try {
     await page.reload({waitUntil:'networkidle'});
     await page.locator(`[data-photo-check="${second}"]`).click();
     await page.getByRole('button',{name:'Organize 1 photo',exact:true}).click();
-    const batch=page.getByRole('dialog',{name:'Who’s in these photos?',exact:true});
+    const batch=page.getByRole('dialog',{name:'Organize photos',exact:true});
     await expect(batch).toBeVisible();
     await batch.locator('#new-child-collection').fill('Draft child');
     await batch.getByRole('button',{name:'+ Create & assign selected',exact:true}).click();

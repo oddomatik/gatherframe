@@ -68,7 +68,7 @@
       <summary class="cursor-pointer text-sm font-medium">Server setup details</summary>
       <div class="mt-3 space-y-2 text-sm leading-relaxed text-stone-600">
         <p>Use a private B2 bucket and an application key restricted to that bucket. Set <code>B2_ENDPOINT</code>, <code>B2_REGION</code>, <code>B2_BUCKET</code>, <code>B2_KEY_ID</code>, and <code>B2_APPLICATION_KEY</code> in the server environment. <code>B2_PREFIX</code> optionally gives this app its own folder.</p>
-        <p>Keep credentials in the server’s private environment file or secret manager. They are never entered on this page or shown to parents.</p>
+        <p>Keep credentials in the server’s private environment file or secret manager. They are never entered on this page or shown to visitors.</p>
         <p>The repository guide <code>docs/b2-storage.md</code> has the full setup instructions.</p>
       </div>
     </details>

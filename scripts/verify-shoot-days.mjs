@@ -334,7 +334,7 @@ try {
   await adminPage.getByRole('button', { name: 'Select shot-2', exact: true }).click();
   await adminPage.getByRole('button', { name: 'Select shot-009', exact: true }).click();
   await adminPage.getByRole('button', { name: 'Organize 2 photos', exact: true }).click();
-  const sorting = adminPage.getByRole('dialog', { name: 'Who’s in these photos?', exact: true });
+  const sorting = adminPage.getByRole('dialog', { name: 'Organize photos', exact: true });
   await expect(sorting).toBeVisible();
   await expect(sorting.locator('article')).toHaveCount(2);
   await expect(sorting.getByRole('button', { name: 'Save & finish', exact: true })).toBeDisabled();
@@ -343,11 +343,11 @@ try {
   await sorting.getByRole('button', { name: 'Select none in batch', exact: true }).click();
   await sorting.getByRole('button', { name: 'Select batch photo shot-009', exact: true }).click();
   await sorting.getByRole('button', { name: '+ Create & assign selected', exact: true }).click();
-  await expect(sorting.getByRole('checkbox', { name: 'Assign Kid 001', exact: true })).toBeChecked();
+  await expect(sorting.getByRole('checkbox', { name: 'Assign Collection 001', exact: true })).toBeChecked();
   await sorting.getByRole('checkbox', { name: 'Assign PRIVATE_CHILD_BETA_8472', exact: true }).check();
-  await expect(sorting.locator(`[data-photo-id="${shot9}"]`)).toContainText('Kid 001 · to add');
-  await expect(sorting.locator(`[data-photo-id="${shot2}"]`)).not.toContainText('Kid 001');
-  assert.equal(db.prepare("SELECT count(*) n FROM galleries WHERE name='Kid 001'").get().n, 0, 'Draft does not create live collections');
+  await expect(sorting.locator(`[data-photo-id="${shot9}"]`)).toContainText('Collection 001 · to add');
+  await expect(sorting.locator(`[data-photo-id="${shot2}"]`)).not.toContainText('Collection 001');
+  assert.equal(db.prepare("SELECT count(*) n FROM galleries WHERE name='Collection 001'").get().n, 0, 'Draft does not create live collections');
   const initialMemberships = db.prepare('SELECT * FROM gallery_photos ORDER BY gallery_id,photo_id').all();
   await shot('desktop-focused-sorting', adminPage);
   await adminPage.setViewportSize({ width: 390, height: 844 });
@@ -369,7 +369,7 @@ try {
   await adminPage.route('**/admin/api/events/*/organize', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Synthetic grouping failure' }) }));
   await sorting.getByRole('button', { name: 'Save & finish', exact: true }).click();
   await expect(sorting.getByRole('alert')).toHaveText('Synthetic grouping failure');
-  await expect(sorting.getByRole('checkbox', { name: 'Assign Kid 001', exact: true })).toBeChecked();
+  await expect(sorting.getByRole('checkbox', { name: 'Assign Collection 001', exact: true })).toBeChecked();
   assert.deepEqual(db.prepare('SELECT * FROM gallery_photos ORDER BY gallery_id,photo_id').all(), initialMemberships);
   await adminPage.unroute('**/admin/api/events/*/organize');
   const unchangedShots = db.prepare("SELECT * FROM photos WHERE stem LIKE 'shot-%' ORDER BY id").all();
@@ -382,7 +382,7 @@ try {
   });
   await sorting.getByRole('button', { name: 'Save & finish', exact: true }).click();
   await expect(sorting.getByRole('alert')).toHaveText('Synthetic lost response after save');
-  const kid = db.prepare("SELECT id FROM galleries WHERE event_id=? AND name='Kid 001'").get(eventId).id;
+  const kid = db.prepare("SELECT id FROM galleries WHERE event_id=? AND name='Collection 001'").get(eventId).id;
   const memberships = () => db.prepare('SELECT gallery_id,photo_id FROM gallery_photos WHERE photo_id IN (?,?) ORDER BY photo_id,gallery_id').all(shot2, shot9);
   const expectedMemberships = [ {photo_id:shot2,gallery_id:alpha}, ...[alpha,beta,kid].map(gallery_id=>({photo_id:shot9,gallery_id})) ].sort((a,b)=>a.photo_id-b.photo_id||a.gallery_id-b.gallery_id);
   assert.deepEqual(memberships(), expectedMemberships);
@@ -393,7 +393,7 @@ try {
   await expect(adminPage.getByRole('button', {name:'Select shot-2',exact:true})).toHaveCount(0);
   await expect(adminPage.getByRole('button', {name:'Select shot-009',exact:true})).toHaveCount(0);
   await expect(adminPage.getByRole('button', {name:'Select shot-10',exact:true})).toBeVisible();
-  assert.equal(db.prepare("SELECT count(*) n FROM galleries WHERE event_id=? AND name='Kid 001'").get(eventId).n, 1);
+  assert.equal(db.prepare("SELECT count(*) n FROM galleries WHERE event_id=? AND name='Collection 001'").get(eventId).n, 1);
   assert.deepEqual(memberships(), expectedMemberships);
   assert.deepEqual(db.prepare("SELECT * FROM photos WHERE stem LIKE 'shot-%' ORDER BY id").all(), unchangedShots);
   assert.deepEqual(db.prepare('SELECT * FROM photo_files ORDER BY id').all(), unchangedFiles);
@@ -403,11 +403,11 @@ try {
   await adminPage.getByRole('button', {name:'Select shot-10',exact:true}).click();
   await adminPage.getByRole('button', {name:'Organize 1 photo',exact:true}).click();
   await sorting.getByRole('button', { name: '+ Create & assign selected', exact: true }).click();
-  await expect(sorting.getByRole('checkbox',{name:'Assign Kid 002',exact:true})).toBeChecked();
+  await expect(sorting.getByRole('checkbox',{name:'Assign Collection 002',exact:true})).toBeChecked();
   await sorting.getByRole('button',{name:'Close sorting window',exact:true}).click();
   await expect(sorting).toHaveCount(0);
   await expect(adminPage.getByRole('button',{name:'Organize 1 photo',exact:true})).toBeVisible();
-  assert.equal(db.prepare("SELECT count(*) n FROM galleries WHERE name='Kid 002'").get().n,0);
+  assert.equal(db.prepare("SELECT count(*) n FROM galleries WHERE name='Collection 002'").get().n,0);
   ok('Cancel discards unsaved new collections and preserves the original grid selection');
   await page.goto(base + alphaUrl, { waitUntil: 'networkidle' }); await assertVisible([a1,a2,a0,shot2,shot9]);
   await page.goto(base + betaUrl, { waitUntil: 'networkidle' }); await assertVisible([a2,b2,shot9]);

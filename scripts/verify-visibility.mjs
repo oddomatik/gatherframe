@@ -88,11 +88,11 @@ async function assertVisible(ids) { await expect.poll(() => visibleIds(page)).to
  await ctx.request.get(album);assert.deepEqual(counts(),{}); // HTML fetch/preloads are not views.
  await page.goto(album,{waitUntil:'networkidle'});
  await expect.poll(()=>counts().album_view).toBe(1);
- await page.getByRole('button',{name:'Add collection 1 to My family',exact:true}).click();
+ await page.getByRole('button',{name:'Save collection 1',exact:true}).click();
  await expect.poll(()=>counts().family_add).toBe(1);
- await page.getByRole('button',{name:'Remove collection 1 from My family',exact:true}).click();
+ await page.getByRole('button',{name:'Unsave collection 1',exact:true}).click();
  await expect.poll(()=>counts().family_remove).toBe(1);
- await page.getByRole('button',{name:'Add collection 1 to My family',exact:true}).click();
+ await page.getByRole('button',{name:'Save collection 1',exact:true}).click();
  await expect.poll(()=>counts().family_add).toBe(2);
  await page.getByRole('link',{name:/Open photo collection 1,/}).click();
  await expect.poll(()=>counts().collection_view).toBe(1);
@@ -137,7 +137,7 @@ async function assertVisible(ids) { await expect.poll(() => visibleIds(page)).to
  await adminPage.goto(base+'/admin/visibility?event='+eventId,{waitUntil:'networkidle'});
  await expect(adminPage.getByRole('heading',{name:'Visibility',exact:true})).toBeVisible();
  const totals=adminPage.getByRole('region',{name:'Engagement totals'});
- for(const [label,value] of [['Gallery views','3'],['Guest browsers','1'],['My family adds','2'],['Favorite adds','1'],['Photo previews','2'],['Downloads sent','3']])await expect(totals.locator('article').filter({has:adminPage.getByRole('heading',{name:label,exact:true})}).locator('p').first()).toHaveText(value);
+ for(const [label,value] of [['Gallery views','3'],['Guest browsers','1'],['Collection saves','2'],['Favorite adds','1'],['Photo previews','2'],['Downloads sent','3']])await expect(totals.locator('article').filter({has:adminPage.getByRole('heading',{name:label,exact:true})}).locator('p').first()).toHaveText(value);
  await expect(adminPage.getByRole('region',{name:'Downloads by type'})).toContainText('Phone share preparation');
  await shot('visibility-desktop',adminPage);
  await adminPage.setViewportSize({width:390,height:844});await shot('visibility-phone',adminPage);

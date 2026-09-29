@@ -59,7 +59,7 @@ export function listCatalogs() { return db.select().from(schema.catalogs).orderB
 export function seedCatalog(): { catalogId: number } {
   return sqlite.transaction(() => {
     let cid = db.select({ id: schema.catalogs.id }).from(schema.catalogs).where(eq(schema.catalogs.isDefault, 1)).get()?.id;
-    if (!cid) cid = db.insert(schema.catalogs).values({ name: 'School pictures', isDefault: 1, currency: getSettings().currency }).returning().get().id;
+    if (!cid) cid = db.insert(schema.catalogs).values({ name: 'Print catalog', isDefault: 1, currency: getSettings().currency }).returning().get().id;
     for (const s of SEED_PRINT_SIZES)
       db.insert(schema.printSizes).values({ code: s.code, label: s.label, widthIn: s.widthIn, heightIn: s.heightIn })
         .onConflictDoUpdate({ target: schema.printSizes.code, set: { label: s.label, widthIn: s.widthIn, heightIn: s.heightIn } }).run();

@@ -27,4 +27,4 @@
   });
   function toggle(){if(!pid)return;try{const state=saveFamily(eventId,s=>{s.pins=s.pins.includes(pid!)?s.pins.filter(p=>p!==pid):[pid!,...s.pins];});pinned=state.pins.includes(pid);activity(page.params.slug!,pinned?'family_add':'family_remove',{collection:pid});}catch{toast('This browser could not remember the collection. You can still browse and use its link.','error');}}
 </script>
-{#if pid}<button type="button" class="button-secondary family-visit" aria-label={pinned?'★ In My family':'☆ Add to My family'} aria-pressed={pinned} disabled={!loaded} onclick={toggle}><span aria-hidden="true">{pinned?'★':'☆'}</span><span><span class="family-verb">{pinned?'In ':'Add to '}</span>My family</span></button>{/if}
+{#if pid}<button type="button" class="button-secondary family-visit" aria-label={pinned?'Remove saved collection':'Save collection'} aria-pressed={pinned} disabled={!loaded} onclick={toggle}><span aria-hidden="true">{pinned?'★':'☆'}</span><span>{pinned?'Saved collection':'Save collection'}</span></button>{/if}

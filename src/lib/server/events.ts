@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema, sqlite } from './db';
+import { normalizeOrderReferenceLabel } from '$shared/terminology';
 import { nowIso } from './env';
 import { randomId } from './ids';
 import type { Event } from './db/schema';
@@ -24,7 +25,7 @@ export function getEventBySlug(slug: string): Event | undefined { return db.sele
 export function createEvent(input: { name: string; subjectLabel?: string; eventDate?: string | null; catalogId?: number | null }): Event {
   const now = nowIso();
   return db.insert(schema.events).values({
-    slug: uniqueSlug(), name: input.name.trim(), subjectLabel: input.subjectLabel?.trim() || 'child', eventDate: input.eventDate || null,
+    slug: uniqueSlug(), name: input.name.trim(), subjectLabel: normalizeOrderReferenceLabel(input.subjectLabel), eventDate: input.eventDate || null,
     variantPolicy: { social: 'free', print: 'free', raw: 'free' }, isPublished: 0, orderingEnabled: 1, catalogId: input.catalogId ?? null,
     createdAt: now, updatedAt: now
   }).returning().get();

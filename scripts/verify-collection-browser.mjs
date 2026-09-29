@@ -57,7 +57,7 @@ try {
   await expect.poll(()=>browse.locator('img').evaluateAll(images=>images.length===2&&images.every(i=>i.complete&&i.naturalWidth>0))).toBe(true);
   await page.keyboard.press('Escape');await expect(browse).not.toBeVisible();for(const id of [freshA,freshB])await expect(page.locator(`[data-photo-check="${id}"]`)).toHaveAttribute('aria-pressed','true');assert.equal(membership(),beforeMembership);
   pass('Sidebar, search, and read-only collection browser use natural names and preserve the selected batch');
-  await page.getByRole('button',{name:'Organize 2 photos',exact:true}).click();const sorting=page.getByRole('dialog',{name:'Who’s in these photos?',exact:true});
+  await page.getByRole('button',{name:'Organize 2 photos',exact:true}).click();const sorting=page.getByRole('dialog',{name:'Organize photos',exact:true});
   await expect(sorting.getByRole('checkbox').first()).toBeVisible();
   assert.deepEqual(await sorting.getByRole('checkbox').evaluateAll(inputs=>inputs.map(i=>i.getAttribute('aria-label').replace(/^Assign /,''))),expected);
   await sorting.getByRole('button',{name:'View photos in Kid 2',exact:true}).click();await expect(browse).toBeVisible();
@@ -69,10 +69,10 @@ try {
   await sorting.getByRole('button',{name:'View photos in Kid 10',exact:true}).click();await browse.getByRole('button',{name:'Add 1 selected photo here',exact:true}).click();await browse.getByRole('button',{name:'Back to sorting',exact:true}).click();
   assert.equal(membership(),beforeMembership);await expect(sorting.getByRole('checkbox',{name:'Assign Kid 2',exact:true})).toBeChecked();await expect(sorting.getByRole('checkbox',{name:'Assign Kid 10',exact:true})).toBeChecked();
   pass('Nested previews support arrow keys and Escape; different subsets can be assigned without premature writes');
-  await sorting.getByLabel('New child collection').fill('Aaron');await sorting.getByRole('button',{name:'+ Create & assign selected',exact:true}).click();
+  await sorting.getByLabel('New collection').fill('Aaron');await sorting.getByRole('button',{name:'+ Create & assign selected',exact:true}).click();
   assert.deepEqual(await sorting.getByRole('checkbox').evaluateAll(inputs=>inputs.map(i=>i.getAttribute('aria-label').replace(/^Assign /,''))),['Aaron',...expected]);
   await sorting.getByRole('button',{name:'View photos in Aaron',exact:true}).click();await expect(browse).toContainText('1 photo · unsaved collection');await expect(browse.getByRole('button',{name:'View existing photo shot_21',exact:true})).toBeVisible();await page.keyboard.press('Escape');
-  await sorting.getByLabel('Find child collection').fill('kid');assert.equal(await sorting.getByRole('checkbox').count(),2);await sorting.getByLabel('Find child collection').fill('');
+  await sorting.getByLabel('Find collection').fill('kid');assert.equal(await sorting.getByRole('checkbox').count(),2);await sorting.getByLabel('Find collection').fill('');
   await sorting.getByRole('button',{name:'Save & finish',exact:true}).click();await expect(sorting).not.toBeVisible();
   const members=id=>db.prepare('SELECT gallery_id FROM gallery_photos WHERE photo_id=? ORDER BY gallery_id').all(id).map(r=>r.gallery_id);
   const aaron=db.prepare("SELECT id FROM galleries WHERE event_id=? AND name='Aaron'").get(eventId).id;
@@ -91,6 +91,15 @@ try {
   await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.ok(await browse.evaluate(d=>d.scrollWidth<=d.clientWidth));
   if(process.env.COLLECTION_ARTIFACTS){await mkdir(process.env.COLLECTION_ARTIFACTS,{recursive:true});await page.screenshot({path:path.join(process.env.COLLECTION_ARTIFACTS,'mobile-collection-browser.png')});}
   await page.mouse.click(1,1);await expect(browse).not.toBeVisible();assert.deepEqual(errors,[]);assert.equal(immutable(),before);
+  await page.locator(`[data-photo-check="${freshA}"]`).click();await page.getByRole('button',{name:'Organize 1 photo',exact:true}).click();
+  const savedMemberships=membership();await expect(sorting.getByLabel('New collection')).toHaveValue('');
+  await sorting.getByRole('button',{name:'+ Create & assign selected',exact:true}).click();
+  await expect(sorting.getByRole('checkbox',{name:'Assign Collection 001',exact:true})).toBeChecked();
+  assert.equal(db.prepare("SELECT count(*) n FROM galleries WHERE name='Collection 001'").get().n,0);
+  page.once('dialog',d=>d.accept());await sorting.getByRole('button',{name:'Discard draft',exact:true}).click();
+  await expect(sorting).not.toBeVisible();assert.equal(membership(),savedMemberships);
+  await page.locator(`[data-photo-check="${freshA}"]`).click();
+  pass('Unnamed drafts use neutral collection labels; discarding preserves all saved memberships');
   if(process.env.COLLECTION_ARTIFACTS){await page.setViewportSize({width:1360,height:1000});await page.locator(`[data-photo-check="${freshA}"]`).click();await page.getByRole('button',{name:'Organize 1 photo',exact:true}).click();await page.screenshot({path:path.join(process.env.COLLECTION_ARTIFACTS,'desktop-sorting-collections.png')});}
   pass('Mobile browsing fits the viewport, backdrop dismissal works, and photo files/accounts/sessions are unchanged');
   console.log(JSON.stringify({passed:checks.length,checks},null,2));
