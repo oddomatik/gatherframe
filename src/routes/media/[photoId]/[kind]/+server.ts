@@ -17,7 +17,8 @@ export const GET: RequestHandler = async (e) => {
   if (!row) throw error(404, 'Not found');
   const event = db.select().from(schema.events).where(eq(schema.events.id, row.eventId)).get();
   if (!event) throw error(404, 'Not found');
-  const admin = !!e.locals.admin && e.cookies.get('pk_parent_preview') !== '1';
+  // Demo startup validates an isolated public fixture; its studio tour has no login cookie.
+  const admin = e.locals.demo === true || (!!e.locals.admin && e.cookies.get('pk_parent_preview') !== '1');
   if (!admin && !validMediaToken(e.url.searchParams.get('t'), event, photoId, kind)) throw error(403, 'Open the shared gallery to view this preview');
   if (row.status !== 'ready') throw error(404, 'Not ready');
   const cover = isCoverKind(kind);
