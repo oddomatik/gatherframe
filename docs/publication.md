@@ -26,6 +26,11 @@ The CI and release workflows are committed configuration, not evidence that GitH
 The release workflow publishes an image when a reviewed semver GitHub release is explicitly published;
 it never upgrades a running instance. No cloud resources or subscription billing are provisioned by this repo.
 
+If the release event does not start publication, manually dispatch the release
+workflow with the existing published `tag`. Both CI and image publication check out
+that exact tag; the image revision label comes from the checked-out commit, not the
+dispatching branch. The tag must match package metadata and be reachable from main.
+
 ## Dependency review
 
 The September 28, 2026 preparation audit reported zero high/critical advisories and nine lower-severity
