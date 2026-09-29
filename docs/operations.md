@@ -2,6 +2,10 @@
 
 ## Release contract
 
+The [release policy](release-policy.md) defines repository boundaries, supported
+versions and customer-difference handling. Private operations consume this app's
+release artifacts; they do not maintain a second application source tree.
+
 Use immutable image digests and keep the exact matching source/tag. One image runs unchanged across
 self-hosted and managed instances; there are no per-customer code forks. The release workflow prepares
 an amd64 GHCR image, SBOM/provenance and immutable digest on an explicitly published semver release.
