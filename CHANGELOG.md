@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Named delivery versions with unchanged photographer-authored exports, folder
+  mappings, explicit download filenames and optional generated Web JPEGs.
+- Configurable dimensions, quality, light sharpening and metadata handling;
+  sample previews, reviewed backfills, targeted retry and batch pause.
+- Immutable file revisions and source/recipe tracking; uploaded overrides and
+  newer source revisions fence in-flight work. Stale individual/ZIP downloads
+  are rejected, and existing projects migrate without automatic generation.
+- Shared image-processing limits and immediate queue refill between jobs;
+  custom-version download counts and integration-oriented service contracts.
+
 ## 0.1.0 — 2026-09-29
 
 First public release. This is an early self-hosted application release, not a

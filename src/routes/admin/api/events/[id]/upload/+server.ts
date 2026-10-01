@@ -1,18 +1,19 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { StorageError } from '$server/blob-store';
 import { IngestError, ingestUpload } from '$server/ingest';
-import { UPLOAD_ROLES, type UploadRole } from '$shared/stem';
+import { isVariantRole, type UploadRole } from '$shared/stem';
 import { parseShootDay, type ShootDay } from '$shared/shoot-days';
 
 export const PUT: RequestHandler = async (e) => {
   const q = e.url.searchParams;
   const role = q.get('role');
+  if (role && !isVariantRole(role) && !['xmp','acr'].includes(role)) return json({ error: 'Invalid delivery version.' }, { status: 400 });
   let shootDay: ShootDay | null;
   try { shootDay = parseShootDay(q.get('shootDay')); } catch (err) { return json({ error: (err as Error).message }, { status: 400 }); }
   try {
     const r = await ingestUpload({
       eventId: Number(e.params.id), galleryId: Number(q.get('gallery')), filename: q.get('filename') ?? 'upload',
-      role: role && UPLOAD_ROLES.includes(role as UploadRole) ? (role as UploadRole) : null,
+      role: role as UploadRole | null,
       body: e.request.body, declaredBytes: Number(e.request.headers.get('content-length')) || null,
       longEdgePx: Number(q.get('longEdge')) || null,
       shootDay, tagIds: (q.get("tags") ?? "").split(",").filter(Boolean).map(Number),

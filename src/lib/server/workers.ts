@@ -5,6 +5,7 @@ import { db, schema, sqlite } from './db';
 import { env, nowIso } from './env';
 import { enqueue, registerHandler, startJobRunner } from './jobs';
 import { renderPhoto } from './images';
+import { renderDelivery } from './delivery-render';
 import { deliverPending, scheduleDeliveries } from './notify';
 import { storage, withStorageLock } from './storage';
 import { deleteObject } from './blob-store';
@@ -19,6 +20,7 @@ export function startWorkers(): void {
   ensureCatalog();
 
   registerHandler('render_photo', async (p) => { await renderPhoto(Number(p.photoId)); });
+  registerHandler('render_delivery', async (p) => { await renderDelivery(Number(p.eventId), Number(p.photoId), String(p.role), Number(p.generation)); });
   registerHandler('deliver_notification', async () => { await deliverPending(); });
   registerHandler('delete_files', async (p) => {
     for (const rel of (p.paths as string[]) ?? []) await deleteUnreferencedPath(rel);
@@ -67,6 +69,8 @@ export async function deleteUnreferencedPath(rel: string): Promise<boolean> {
   // Directory deletions are legacy/photo derivatives; immutable originals are per-object.
   const references = sqlite.prepare(`SELECT 1 FROM photo_files WHERE storage_path = ? OR substr(storage_path, 1, length(?) + 1) = ? || '/' LIMIT 1`).get(rel, rel, rel);
   if (references) return false;
+  const revisions = sqlite.prepare(`SELECT 1 FROM photo_file_revisions WHERE storage_path = ? OR substr(storage_path, 1, length(?) + 1) = ? || '/' LIMIT 1`).get(rel, rel, rel);
+  if (revisions) return false;
   const sidecarReferences = sqlite.prepare(`SELECT 1 FROM photo_sidecars WHERE storage_path = ? OR substr(storage_path, 1, length(?) + 1) = ? || '/' LIMIT 1`).get(rel, rel, rel);
   if (sidecarReferences) return false;
   // A stale cleanup must not remove the currently published preview set.

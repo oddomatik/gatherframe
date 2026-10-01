@@ -9,18 +9,18 @@ function folderRole(folder: string): VariantRole | null {
 }
 
 /** Folders tell us the version, never the photo's identity or collection. */
-export function sourceFolder(relativePath: string): { path: string; label: string; role: VariantRole | null } {
+export function sourceFolder(relativePath: string, mappings: Record<string, VariantRole> = {}): { path: string; label: string; role: VariantRole | null } {
   const parts = relativePath.replaceAll('\\', '/').split('/').slice(0, -1);
   return {
     path: parts.join('/'), label: parts.at(-1) || 'Files',
-    role: [...parts].reverse().map(folderRole).find((role) => role !== null) ?? null
+    role: [...parts].reverse().map(p => mappings[p.trim().toLowerCase()] ?? folderRole(p)).find((role) => role !== null) ?? null
   };
 }
 
 export type ImportSource = { name: string; webkitRelativePath?: string };
 
 /** Keep duplicate slots visible for review; never silently choose the last file. */
-export function planImportFiles<T extends ImportSource>(files: T[], zoneRole: VariantRole | null = null, defaultRole: VariantRole = 'print') {
+export function planImportFiles<T extends ImportSource>(files: T[], zoneRole: VariantRole | null = null, defaultRole: VariantRole = 'print', mappings: Record<string, VariantRole> = {}) {
   const rows = new Map<string, { file: T; role: UploadRole }[]>();
   for (const file of files) {
     const key = photoKey(file.name);
@@ -29,7 +29,7 @@ export function planImportFiles<T extends ImportSource>(files: T[], zoneRole: Va
     // A named export subfolder describes its contents even when the parent was
     // selected from a single-version picker. The picker is a fallback for loose
     // files or unrecognized folders, not an override of full/social/raw.
-    const role = sidecarRole(file.name) ?? (raw ? 'raw' : sourceFolder(file.webkitRelativePath || file.name).role ?? zoneRole ?? defaultRole);
+    const role = sidecarRole(file.name) ?? (raw ? 'raw' : sourceFolder(file.webkitRelativePath || file.name, mappings).role ?? zoneRole ?? defaultRole);
     const entries = rows.get(key) ?? [];
     entries.push({ file, role }); rows.set(key, entries);
   }
@@ -56,7 +56,7 @@ export type ImportPhoto = {
   id: number;
   stem: string;
   matchKeys: string[];
-  files: { role: string; originalFilename: string }[];
+  files: { role: string; originalFilename: string; origin?: 'uploaded' | 'generated' }[];
   sidecars?: { kind: SidecarKind; originalFilename: string }[];
   collections: { id: number; name: string; isIntake: number; isArchived: number }[];
 };

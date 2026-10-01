@@ -11,6 +11,7 @@ Run one application process per database. Managed hosting is a planned service, 
 
 - Photo-first galleries, collection covers, project-defined tags and shareable branches.
 - Lightroom-friendly full-resolution, social and RAW imports; private XMP/ACR companions.
+- [Named delivery versions](docs/delivery-versions.md): preserve your exports or generate optional smaller JPEGs, with custom upload overrides.
 - Resumable uploads, recoverable sorting, independent photo identity and shared collection membership.
 - Browser-local favorites and saved collections, individual/ZIP downloads and phone sharing preparation.
 - Configurable print products, order receipts, manual payment records and production/master approval.

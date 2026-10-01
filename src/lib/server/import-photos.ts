@@ -41,6 +41,6 @@ export function listImportPhotos(eventId: number) {
   return photos.map(({ photo }) => {
     const photoFiles = fileMap.get(photo.id) ?? [];
     const photoSidecars = sidecarMap.get(photo.id) ?? [];
-    return { ...photo, files: photoFiles, sidecars: photoSidecars, matchKeys: photoMatchKeys({ stem: photo.stem, files: [...photoFiles, ...photoSidecars] }, patterns), collections: (collectionMap.get(photo.id) ?? []).sort(compareCollectionNames) };
+    return { ...photo, files: photoFiles, sidecars: photoSidecars, matchKeys: photoMatchKeys({ stem: photo.stem, files: [...photoFiles.filter(f => f.origin === 'uploaded'), ...photoSidecars] }, patterns), collections: (collectionMap.get(photo.id) ?? []).sort(compareCollectionNames) };
   });
 }

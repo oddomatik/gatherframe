@@ -1,6 +1,7 @@
 import { index, integer, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
 import type { SidecarMetadata } from '../sidecars';
 import type { SidecarKind } from '$shared/stem';
+import type { DeliveryRecipe } from '$shared/delivery';
 
 const id = () => integer('id').primaryKey({ autoIncrement: true });
 const createdAt = () => text('created_at').notNull();
@@ -56,6 +57,7 @@ export const events = sqliteTable('events', {
   sharePhotoId: integer('share_photo_id'),
   shareUploadHash: text('share_upload_hash'),
   variantPolicy: text('variant_policy', { mode: 'json' }).$type<Record<string, 'free' | 'disabled' | 'paid'>>().notNull(),
+  displaySourceRole: text('display_source_role'),
   orderingEnabled: integer('ordering_enabled').notNull().default(1),
   catalogId: integer('catalog_id'),
   stemSuffixPatterns: text('stem_suffix_patterns', { mode: 'json' }).$type<Record<string, string> | null>(),
@@ -121,6 +123,14 @@ export const photoFiles = sqliteTable('photo_files', {
   id: id(),
   photoId: integer('photo_id').notNull().references(() => photos.id, { onDelete: 'cascade' }),
   role: text('role').notNull(),
+  origin: text('origin').$type<'uploaded' | 'generated'>().notNull().default('uploaded'),
+  revisionId: text('revision_id'),
+  sourceFileId: integer('source_file_id'),
+  sourceSha256: text('source_sha256'),
+  recipeHash: text('recipe_hash'),
+  recipe: text('recipe', { mode: 'json' }).$type<DeliveryRecipe | null>(),
+  available: integer('available').notNull().default(1),
+  needsReview: integer('needs_review').notNull().default(0),
   originalFilename: text('original_filename').notNull(),
   ext: text('ext').notNull(),
   mime: text('mime').notNull(),
@@ -133,6 +143,33 @@ export const photoFiles = sqliteTable('photo_files', {
   priceCents: integer('price_cents'),
   createdAt: createdAt()
 }, (t) => [uniqueIndex('photo_files_photo_role_uq').on(t.photoId, t.role)]);
+
+export const deliveryVersions = sqliteTable('delivery_versions', {
+  eventId: integer('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  key: text('key').notNull(), label: text('label').notNull(),
+  mode: text('mode').$type<'uploaded' | 'automatic'>().notNull().default('uploaded'),
+  sourceRole: text('source_role'), recipe: text('recipe', { mode: 'json' }).$type<DeliveryRecipe | null>(),
+  filenameMode: text('filename_mode').$type<'private' | 'original'>().notNull().default('private'),
+  folder: text('folder').notNull().default(''), sortOrder: integer('sort_order').notNull().default(0),
+  updatedAt: text('updated_at').notNull()
+}, (t) => [uniqueIndex('delivery_versions_event_key_uq').on(t.eventId, t.key)]);
+
+/** Immutable revision snapshots; current photo_files rows preserve legacy file URLs. */
+export const photoFileRevisions = sqliteTable('photo_file_revisions', {
+  id: text('id').primaryKey(), photoId: integer('photo_id').notNull().references(() => photos.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(), storagePath: text('storage_path').notNull(), sha256: text('sha256').notNull(),
+  snapshot: text('snapshot', { mode: 'json' }).$type<Record<string, unknown>>().notNull(), createdAt: createdAt()
+});
+
+export const deliveryStates = sqliteTable('delivery_states', {
+  photoId: integer('photo_id').notNull().references(() => photos.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(), generation: integer('generation').notNull().default(0),
+  status: text('status').$type<'queued' | 'processing' | 'ready' | 'failed' | 'waiting' | 'paused' | 'uploaded'>().notNull(),
+  sourceFileId: integer('source_file_id'), sourceSha256: text('source_sha256'),
+  replaceUploadSha256: text('replace_upload_sha256'),
+  recipe: text('recipe', { mode: 'json' }).$type<DeliveryRecipe | null>(), recipeHash: text('recipe_hash'),
+  lastError: text('last_error'), updatedAt: text('updated_at').notNull()
+}, (t) => [uniqueIndex('delivery_states_photo_role_uq').on(t.photoId, t.role)]);
 
 /** Lightroom originals remain private; these are deliberately separate from public photoFiles. */
 export const photoSidecars = sqliteTable('photo_sidecars', {
@@ -155,7 +192,7 @@ export const downloadTokens = sqliteTable('download_tokens', {
   token: text('token').primaryKey(),
   eventId: integer('event_id').notNull(),
   visitorSid: text('visitor_sid').notNull(),
-  payload: text('payload', { mode: 'json' }).$type<{ photoIds: number[]; roles: string[] }>().notNull(),
+  payload: text('payload', { mode: 'json' }).$type<{ photoIds: number[]; roles: string[]; files?: { id: number; sha256: string }[] }>().notNull(),
   usesLeft: integer('uses_left').notNull(),
   expiresAt: text('expires_at').notNull(),
   createdAt: createdAt()

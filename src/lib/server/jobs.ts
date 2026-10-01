@@ -5,7 +5,7 @@ import type { Job } from './db/schema';
 
 type Handler = (payload: Record<string, unknown>, job: Job) => Promise<void>;
 const handlers = new Map<string, Handler>();
-const perTypeCap: Record<string, number> = { render_photo: 2, build_zip: 1, deliver_notification: 1, delete_files: 2, sweep: 1, backup: 1 };
+const perTypeCap: Record<string, number> = { render_photo: 2, render_delivery: 2, build_zip: 1, deliver_notification: 1, delete_files: 2, sweep: 1, backup: 1 };
 const running = new Map<number, string>();
 const MAX_CONCURRENT = 6;
 const LEASE_MS = 10 * 60_000;
@@ -32,12 +32,13 @@ function claim(): Job | null {
   const now = nowIso();
   const busyTypes = [...running.values()].reduce<Record<string, number>>((m, t) => ((m[t] = (m[t] ?? 0) + 1), m), {});
   const excluded = Object.entries(perTypeCap).filter(([t, cap]) => (busyTypes[t] ?? 0) >= cap).map(([t]) => t);
+  if ((busyTypes.render_photo ?? 0) + (busyTypes.render_delivery ?? 0) >= 2) excluded.push('render_photo', 'render_delivery');
   const typeFilter = excluded.length ? `AND type NOT IN (${excluded.map(() => '?').join(',')})` : '';
   const row = sqlite.prepare(`
     UPDATE jobs SET status = 'running', locked_at = ?, attempts = attempts + 1
     WHERE id = (SELECT id FROM jobs candidate WHERE status = 'queued' AND run_at <= ? ${typeFilter}
       AND (type != 'render_photo' OR NOT EXISTS (SELECT 1 FROM jobs active WHERE active.status = 'running' AND active.type = 'render_photo' AND json_extract(active.payload, '$.photoId') = json_extract(candidate.payload, '$.photoId')))
-      ORDER BY priority DESC, id LIMIT 1)
+      ORDER BY priority + min(10, max(0, (unixepoch('now') - unixepoch(created_at)) / 60)) DESC, id LIMIT 1)
     RETURNING *`).get(now, now, ...excluded) as Record<string, unknown> | undefined;
   if (!row) return null;
   return db.select().from(schema.jobs).where(eq(schema.jobs.id, row.id as number)).get() ?? null;
@@ -60,6 +61,9 @@ async function runOne(job: Job): Promise<void> {
     }
   } finally {
     running.delete(job.id);
+    // Refill a freed slot immediately; the polling interval is only for newly
+    // enqueued work, not an artificial pause between every image in a batch.
+    queueMicrotask(tick);
   }
 }
 

@@ -1,3 +1,5 @@
+import { isVariantRole, type UploadRole } from '$shared/stem';
+import { versionFor, deliverySourceChanged } from './delivery';
 import { Server, Upload } from '@tus/server';
 import { FileStore } from '@tus/file-store';
 import { createHash, randomUUID } from 'node:crypto';
@@ -22,7 +24,7 @@ const store = new FileStore({ directory });
 const server = new Server({ path: '/admin/api/transfers', datastore: store, maxSize: env.maxUploadBytes, relativeLocation: true, allowedOrigins: [] });
 const inputSchema = z.object({
   galleryId: z.number().int().positive(), filename: z.string().min(1).max(255).refine(v => !/[\\/\x00-\x1f]/.test(v)),
-  role: z.enum(['print','social','raw','xmp','acr']), bytes: z.number().int().positive().safe(), sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  role: z.string().refine(v => isVariantRole(v) || v === 'xmp' || v === 'acr').transform(v => v as UploadRole), bytes: z.number().int().positive().safe(), sha256: z.string().regex(/^[a-f0-9]{64}$/),
   replacement: z.enum(['reject','replace']).default('reject'), stemOverride: z.string().min(1).max(200).regex(/^[^\\/\x00-\x1f]+$/).optional(),
   tagIds: z.array(z.number().int().positive()).max(200).default([])
 }).strict();
@@ -42,6 +44,7 @@ export async function prepareTransfer(eventId:number, actor:number, raw:unknown)
   if (!parsed.success) throw new IngestError(400, 'Invalid transfer details. Reselect the file.');
   const input = parsed.data;
   if (!sqlite.prepare('SELECT 1 FROM galleries WHERE id=? AND event_id=? AND is_archived=0').get(input.galleryId,eventId)) throw new IngestError(409,'Choose an active collection in this project.');
+  if (!['xmp','acr'].includes(input.role) && !versionFor(eventId,input.role)) throw new IngestError(400,'Choose a delivery version in this project.');
   if (!isAcceptedUpload(input.filename)) throw new IngestError(415,'Unsupported file type.');
   const sidecar = sidecarRole(input.filename), ext = splitExtension(input.filename).ext;
   if ((sidecar && sidecar !== input.role) || (!sidecar && ['xmp','acr'].includes(input.role)) || (RAW_EXTENSIONS.has(ext) && input.role !== 'raw')) throw new IngestError(400,'File type and version do not match.');
@@ -53,12 +56,18 @@ export async function prepareTransfer(eventId:number, actor:number, raw:unknown)
   if (candidates.length>1) { const exact=candidates.filter(p=>currentFile(p)?.sha256===input.sha256);if(exact.length===1)candidates=exact; }
   if (candidates.length>1) throw new IngestError(409,'More than one photo matches this filename. Resolve the duplicate or keep it separate.');
   const photo=candidates[0], file=photo&&currentFile(photo);
-  if (file?.sha256===input.sha256 && file.bytes===input.bytes) {
+  if (file?.sha256===input.sha256 && file.bytes===input.bytes && (sidecar || !('origin' in file) || file.origin === 'uploaded')) {
     try {
       const st=await objectStat(file.storagePath);
       if(st.size===file.bytes && (!st.sha256||st.sha256===file.sha256)) {
         const stillCurrent=sqlite.prepare(sidecar?'SELECT sha256 FROM photo_sidecars WHERE photo_id=? AND kind=?':'SELECT sha256 FROM photo_files WHERE photo_id=? AND role=?').get(photo.id,sidecar??input.role) as {sha256:string}|undefined;
         if(stillCurrent?.sha256!==file.sha256) throw new IngestError(409,'Another upload changed this version. Review this file before retrying.');
+        // Even a byte-identical authored upload is a fresh override decision.
+        // Cancel any explicitly resumed automatic job before returning the fast receipt.
+        if (!sidecar) sqlite.transaction(() => {
+          sqlite.prepare('UPDATE photo_files SET needs_review=0 WHERE id=?').run(file.id);
+          deliverySourceChanged(photo.id,input.role,false);
+        })();
         return {result:{status:'unchanged',photoId:photo.id,fileId:file.id,stem:photo.stem,role:input.role,bytes:file.bytes,sha256:file.sha256} satisfies IngestResult};
       }
     } catch(err) { if(err instanceof IngestError)throw err; /* Retransfer known bytes to repair an unavailable stored object. */ }

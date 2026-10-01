@@ -1,3 +1,4 @@
+import { listDeliveryVersions } from '$server/delivery';
 import type { LayoutServerLoad } from './$types';
 import { eventContext } from '$server/guard';
 import { getSettings } from '$server/settings';
@@ -16,7 +17,7 @@ export const load: LayoutServerLoad = (e) => {
         ['share', preview.revision]
       ]).toString()
     } : null,
-    event: { id: event.id, slug: event.slug, name: event.name, tagline: state === 'ok' ? event.tagline : null, parentMessage: state === 'ok' ? event.parentMessage : null, subjectLabel: event.subjectLabel, orderingEnabled: !!event.orderingEnabled, variantPolicy: event.variantPolicy, hasPassword: !!event.passwordHash },
+    event: { id: event.id, slug: event.slug, name: event.name, tagline: state === 'ok' ? event.tagline : null, parentMessage: state === 'ok' ? event.parentMessage : null, subjectLabel: event.subjectLabel, orderingEnabled: !!event.orderingEnabled, variantPolicy: event.variantPolicy, versions: state === 'ok' ? listDeliveryVersions(event.id).filter(v => event.variantPolicy[v.key] !== 'disabled').map(v => ({ key:v.key, label:v.label })) : [], hasPassword: !!event.passwordHash },
     access: state,
     isAdminPreview: isAdmin,
     studio: { name: s.studioName, photographer: s.photographerName, contact: s.contactLine, currency: s.currency },

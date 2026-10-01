@@ -127,8 +127,8 @@ try {
   }
   const parentDirectory = path.join(scratch, 'exports', 'MtnKidsPicDay');
   const pickers = [primary, page.getByLabel('Choose full resolution folder', { exact: true }),
-    page.getByLabel('Choose social copies folder', { exact: true }),
-    page.getByLabel('Choose camera raw + edit files folder', { exact: true })];
+    page.getByLabel('Choose web size folder', { exact: true }),
+    page.getByLabel('Choose camera raw folder', { exact: true })];
   for (let i = 0; i < pickers.length; i++) {
     await pickers[i].setInputFiles(parentDirectory);
     await waitForPlan(180, 600);
@@ -224,7 +224,7 @@ try {
   await clearSelection();
 
   const laterSocial = await file('LooseSelection/PAIR_002.jpg', social);
-  await page.getByLabel('Choose social copies files', { exact: true }).setInputFiles(laterSocial);
+  await page.getByLabel('Choose web size files', { exact: true }).setInputFiles(laterSocial);
   await waitForPlan(1, 1);
   assert.deepEqual(await page.locator('tbody select').evaluateAll(selects => selects.map(select => select.value)), ['social']);
   await expect(page.locator('tbody')).toContainText('Linked to existing photo');

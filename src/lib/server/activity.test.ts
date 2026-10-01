@@ -70,7 +70,7 @@ describe('first-party guest activity',()=>{
   const aborted=new Readable({read(){}});trackDownload(e,eid,'stream',aborted,{channel:'zip'});aborted.destroy();
   trackDownload(req(null,{},false,'HEAD'),eid,'stream',Readable.from(['x']),{channel:'file'});
   const day=new Date().toISOString().slice(0,10),report=activityReport(day,day,eid);
-  expect(report.totals.download_start).toBe(3);expect(report.totals.download_complete).toBe(1);expect(report.downloads).toEqual([{channel:'file',transfers:1,social:0,print:1,raw:0,bytes:8}]);
+  expect(report.totals.download_start).toBe(3);expect(report.totals.download_complete).toBe(1);expect(report.downloads).toEqual([{channel:'file',transfers:1,social:0,print:1,raw:0,other:0,bytes:8}]);
  });
  it('separates projects and breaks mixed ZIP deliveries into actual version counts',()=>{
   const other=db.insert(schema.events).values({slug:'other',name:'Other',variantPolicy:{},createdAt:'now',updatedAt:'now'}).returning().get();

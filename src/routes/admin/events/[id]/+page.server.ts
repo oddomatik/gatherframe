@@ -1,3 +1,4 @@
+import { listDeliveryVersions } from '$server/delivery';
 import { normalizeOrderReferenceLabel } from '$shared/terminology';
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -43,6 +44,7 @@ export const load: PageServerLoad = (e) => {
   return {
     linkPreview: { ...linkPreview(ev), source: undefined },
     sharePhotos: allPhotos.filter(p => p.renditionStatus === 'ready' && p.collections.some(g => !g.isIntake)).map(p => ({ id: p.id, label: p.displayName, hash: p.renditionHash, collections: p.collections.filter(g => !g.isIntake).map(g => g.name).join(' · ') })),
+    versions: listDeliveryVersions(ev.id),
     photoRevision: photoRevision(ev.id),
     event: { ...ev, passwordHash: ev.passwordHash ? 'set' : null }, galleries, archived: allGalleries.filter((g) => g.isArchived), selected, photos, publicOrigin: env.publicOrigin, tags: listTags(ev.id), tagAssignments: tagAssignments(ev.id), catalogs: listCatalogs(),
     readiness: { total: allPhotos.length, ready: allPhotos.filter((p) => p.renditionStatus === 'ready').length, failed: allPhotos.filter((p) => p.renditionStatus === 'failed').length, intake: galleries.filter((g) => g.isIntake).reduce((n, g) => n + g.photoCount, 0), missingPrint: allPhotos.filter((p) => !p.files.some((f) => f.role === 'print')).length },
@@ -83,7 +85,7 @@ export const actions: Actions = {
     try {
       const coverPolicy = f.has('collectionCoverPolicy') ? String(f.get('collectionCoverPolicy')) : ev.collectionCoverPolicy;
       if (coverPolicy !== 'exclusive' && coverPolicy !== 'first') return fail(400, { error: 'Choose a valid automatic cover rule.' });
-      const policy = Object.fromEntries(['social', 'print', 'raw'].map((role) => [role, f.get(`p_${role}`) === 'free' ? 'free' : 'disabled'])) as Record<string, 'free' | 'disabled'>;
+      const policy = { ...ev.variantPolicy, ...Object.fromEntries(listDeliveryVersions(ev.id).filter(v => f.has(`p_${v.key}`)).map(v => [v.key, f.get(`p_${v.key}`) === 'free' ? 'free' : 'disabled'])) } as typeof ev.variantPolicy;
       let expiresAt: string | null = null;
       const local = String(f.get('expiresLocal') ?? '');
       if (local) {

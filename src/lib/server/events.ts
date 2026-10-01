@@ -5,6 +5,7 @@ import { nowIso } from './env';
 import { randomId } from './ids';
 import type { Event } from './db/schema';
 import { archiveCollection } from './grouping';
+import { ensureDeliveryVersions } from './delivery';
 import { comparePhotoOrder } from '$shared/photo-order';
 import { compareCollectionNames } from '$shared/collection-order';
 import { activeCollectionCounts, chooseCollectionCover } from './collection-covers';
@@ -24,11 +25,15 @@ export function getEventBySlug(slug: string): Event | undefined { return db.sele
 
 export function createEvent(input: { name: string; subjectLabel?: string; eventDate?: string | null; catalogId?: number | null }): Event {
   const now = nowIso();
-  return db.insert(schema.events).values({
+  return sqlite.transaction(() => {
+  const event = db.insert(schema.events).values({
     slug: uniqueSlug(), name: input.name.trim(), subjectLabel: normalizeOrderReferenceLabel(input.subjectLabel), eventDate: input.eventDate || null,
     variantPolicy: { social: 'free', print: 'free', raw: 'free' }, isPublished: 0, orderingEnabled: 1, catalogId: input.catalogId ?? null,
     createdAt: now, updatedAt: now
   }).returning().get();
+  ensureDeliveryVersions(event.id);
+  return event;
+  })();
 }
 
 function uniqueSlug(): string {
@@ -130,7 +135,7 @@ export function deleteGallery(id: number): { ok: boolean; reason?: string } {
 export interface PhotoWithFiles {
   id: number; galleryId: number; stem: string; displayName: string; takenAt: string | null; shootDay: 1 | 2 | null; width: number | null; height: number | null;
   renditionStatus: string; renditionHash: string | null; sortOrder: number; collections: { id: number; name: string; isIntake: number }[]; renderError: string | null;
-  files: { id: number; role: string; originalFilename: string; ext: string; mime: string; bytes: number; width: number | null; height: number | null; downloadable: number; sha256: string }[];
+  files: { id: number; role: string; originalFilename: string; ext: string; mime: string; bytes: number; width: number | null; height: number | null; downloadable: number; sha256: string; photoId?: number; origin?: 'uploaded' | 'generated'; available?: number; sourceFileId?: number | null; sourceSha256?: string | null }[];
 }
 
 export function listPhotos(galleryId: number): PhotoWithFiles[] {
@@ -149,7 +154,7 @@ function photosWithFiles(ids: number[]): PhotoWithFiles[] {
   const byPhoto = new Map<number, PhotoWithFiles['files']>();
   for (const f of files) {
     const arr = byPhoto.get(f.photoId) ?? [];
-    arr.push({ id: f.id, role: f.role, originalFilename: f.originalFilename, ext: f.ext, mime: f.mime, bytes: f.bytes, width: f.width, height: f.height, downloadable: f.downloadable, sha256: f.sha256 });
+    arr.push({ photoId: f.photoId, origin:f.origin, available:f.available, sourceFileId:f.sourceFileId, sourceSha256:f.sourceSha256, id: f.id, role: f.role, originalFilename: f.originalFilename, ext: f.ext, mime: f.mime, bytes: f.bytes, width: f.width, height: f.height, downloadable: f.downloadable, sha256: f.sha256 });
     byPhoto.set(f.photoId, arr);
   }
   return rows.map((r) => ({ ...r, files: (byPhoto.get(r.id) ?? []).sort((a, b) => ['social', 'print', 'raw'].indexOf(a.role) - ['social', 'print', 'raw'].indexOf(b.role)),

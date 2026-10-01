@@ -1,3 +1,4 @@
+import { fileIsCurrent, currentFile, deliveryFilename, listDeliveryVersions } from '$server/delivery';
 import { trackDownload } from '$server/activity';
 import { error, type RequestHandler } from '@sveltejs/kit';
 import { and, eq, inArray, sql } from 'drizzle-orm';
@@ -28,12 +29,15 @@ export const GET: RequestHandler = async (e) => {
   }).from(schema.photoFiles).innerJoin(schema.photos, eq(schema.photos.id, schema.photoFiles.photoId)).innerJoin(schema.galleries, eq(schema.galleries.id, schema.photos.galleryId))
     .where(and(inArray(schema.photoFiles.photoId, t.payload.photoIds), inArray(schema.photoFiles.role, t.payload.roles), eq(schema.photoFiles.downloadable, 1), eq(schema.galleries.eventId, event.id)))
     .orderBy(schema.galleries.name, schema.photos.stem, schema.photoFiles.role).all();
+  if (rows.some(r => { const file = currentFile(r.photoId,r.role); return !file || !fileIsCurrent(file); }) ||
+      t.payload.files && (rows.length !== t.payload.files.length || rows.some(r => !t.payload.files!.some(f => f.id === r.fileId && f.sha256 === r.sha256))))
+    throw error(409, 'These files have changed. Start a new download from the gallery.');
   const availableIds = new Set(rows.map((r) => r.photoId));
   if (t.payload.photoIds.some((id) => !availableIds.has(id))) throw error(409, 'A selected photo is no longer downloadable. Please review your selection.');
 
   const name = entryNamer();
-  const roleTag = (r: string) => (t.payload.roles.length > 1 ? `-${r}` : '');
-  const entries = rows.map((r) => ({ storagePath: r.path, name: name('Photos', `photo-${r.photoId}${roleTag(r.role)}.${r.ext}`), expectedBytes: r.bytes, expectedSha256: r.sha256 }));
+  const versions = new Map(listDeliveryVersions(event.id).map(v => [v.key, v]));
+  const entries = rows.map((r) => ({ storagePath: r.path, name: name('Photos', deliveryFilename({photoId:r.photoId,role:r.role,ext:r.ext,originalFilename:r.filename},versions.get(r.role))), expectedBytes: r.bytes, expectedSha256: r.sha256 }));
   const ac = new AbortController();
   const abort = () => ac.abort();
   e.request.signal.addEventListener('abort', abort, { once: true });
@@ -45,13 +49,15 @@ export const GET: RequestHandler = async (e) => {
   try { stream = await zipStream(entries, ac.signal, getSettings().zipStreamMaxBytes); } catch (err) { done(); if (err instanceof ZipError) throw error(err.status, err.message); throw err; }
   stream.once('end', done); stream.once('error', done); stream.once('close', done);
   try {
+    const latestEvent = requireEventAccess(e).event;
+    if (rows.some(r => { const file = currentFile(r.photoId, r.role); return !file || file.id !== r.fileId || file.sha256 !== r.sha256 || !file.downloadable || !fileIsCurrent(file) || latestEvent.variantPolicy[r.role] !== 'free' || !visiblePhoto(r.photoId, latestEvent.id); })) throw error(409, 'These downloads changed. Start a new download from the gallery.');
     const consumed = db.update(schema.downloadTokens).set({ usesLeft: sql`${schema.downloadTokens.usesLeft} - 1` }).where(and(eq(schema.downloadTokens.token, t.token), sql`${schema.downloadTokens.usesLeft} > 0`)).run();
     if (!consumed.changes) throw error(410, 'This download link has expired. Please start the download again.');
     const now = nowIso();
     db.insert(schema.downloadLog).values(rows.map((r) => ({ eventId: event.id, galleryId: r.galleryId, photoFileId: r.fileId, role: r.role, visitorSid: sid, ip: null, createdAt: now }))).run();
   } catch (err) { stream.destroy(); done(); throw err; }
 
-  trackDownload(e,event.id,sid,stream,{channel:'zip',social:rows.filter(r=>r.role==='social').length,print:rows.filter(r=>r.role==='print').length,raw:rows.filter(r=>r.role==='raw').length,bytes:rows.reduce((n,r)=>n+r.bytes,0)});
+  trackDownload(e,event.id,sid,stream,{channel:'zip',social:rows.filter(r=>r.role==='social').length,print:rows.filter(r=>r.role==='print').length,raw:rows.filter(r=>r.role==='raw').length,other:rows.filter(r=>r.role.startsWith('v_')).length,bytes:rows.reduce((n,r)=>n+r.bytes,0)});
   const photoCount = new Set(rows.map((r) => r.photoId)).size;
   const filename = `${safeSegment(event.name)} - ${photoCount} photo${photoCount === 1 ? '' : 's'}.zip`;
   return new Response(Readable.toWeb(stream) as unknown as ReadableStream, {

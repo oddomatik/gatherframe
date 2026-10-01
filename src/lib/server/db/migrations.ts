@@ -182,5 +182,43 @@ CREATE INDEX guest_activity_event_time ON guest_activity(event_id,created_at);
 CREATE INDEX guest_activity_time ON guest_activity(created_at);
 CREATE TABLE activity_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 INSERT INTO activity_meta VALUES ('started_at',strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+` },
+  { id: '0015_delivery_versions', sql: `
+ALTER TABLE events ADD COLUMN display_source_role TEXT;
+ALTER TABLE guest_activity ADD COLUMN other_files INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE delivery_versions (
+ event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE, key TEXT NOT NULL,
+ label TEXT NOT NULL, mode TEXT NOT NULL DEFAULT 'uploaded' CHECK(mode IN ('uploaded','automatic')),
+ source_role TEXT, recipe TEXT, filename_mode TEXT NOT NULL DEFAULT 'private' CHECK(filename_mode IN ('private','original')),
+ folder TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX delivery_versions_event_key_uq ON delivery_versions(event_id,key);
+INSERT INTO delivery_versions(event_id,key,label,sort_order,updated_at)
+ SELECT id,'print','Full resolution',0,updated_at FROM events
+ UNION ALL SELECT id,'social','Web size',1,updated_at FROM events
+ UNION ALL SELECT id,'raw','Camera RAW',2,updated_at FROM events;
+ALTER TABLE photo_files ADD COLUMN origin TEXT NOT NULL DEFAULT 'uploaded' CHECK(origin IN ('uploaded','generated'));
+ALTER TABLE photo_files ADD COLUMN revision_id TEXT;
+ALTER TABLE photo_files ADD COLUMN source_file_id INTEGER;
+ALTER TABLE photo_files ADD COLUMN source_sha256 TEXT;
+ALTER TABLE photo_files ADD COLUMN recipe_hash TEXT;
+ALTER TABLE photo_files ADD COLUMN recipe TEXT;
+ALTER TABLE photo_files ADD COLUMN available INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE photo_files ADD COLUMN needs_review INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE photo_file_revisions (
+ id TEXT PRIMARY KEY, photo_id INTEGER NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+ role TEXT NOT NULL, storage_path TEXT NOT NULL, sha256 TEXT NOT NULL, snapshot TEXT NOT NULL, created_at TEXT NOT NULL
+);
+UPDATE photo_files SET revision_id='legacy-'||id;
+INSERT INTO photo_file_revisions(id,photo_id,role,storage_path,sha256,snapshot,created_at)
+ SELECT revision_id,photo_id,role,storage_path,sha256,
+ json_object('originalFilename',original_filename,'ext',ext,'mime',mime,'bytes',bytes,'width',width,'height',height,'origin','uploaded'),created_at FROM photo_files;
+CREATE TABLE delivery_states (
+ photo_id INTEGER NOT NULL REFERENCES photos(id) ON DELETE CASCADE, role TEXT NOT NULL,
+ generation INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL CHECK(status IN ('queued','processing','ready','failed','waiting','paused','uploaded')),
+ source_file_id INTEGER, source_sha256 TEXT, replace_upload_sha256 TEXT, recipe TEXT, recipe_hash TEXT, last_error TEXT, updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX delivery_states_photo_role_uq ON delivery_states(photo_id,role);
+INSERT INTO delivery_states(photo_id,role,status,updated_at) SELECT photo_id,role,'uploaded',created_at FROM photo_files;
 ` }
 ];
