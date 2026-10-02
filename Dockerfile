@@ -20,7 +20,7 @@ WORKDIR /app
 COPY --from=build --chown=node:node /app/build ./build
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/package.json /app/server.js ./
-COPY --from=build --chown=node:node /app/scripts/runtime-config.mjs /app/scripts/snapshot-db.mjs /app/scripts/reset-admin.cjs ./scripts/
+COPY --from=build --chown=node:node /app/scripts/runtime-config.mjs /app/scripts/snapshot-db.mjs /app/scripts/reset-admin.cjs /app/scripts/doctor.mjs ./scripts/
 COPY --from=build --chown=node:node /app/LICENSE /app/THIRD_PARTY_NOTICES.md ./
 USER node
 VOLUME ["/data"]

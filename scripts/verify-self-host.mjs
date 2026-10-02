@@ -36,16 +36,26 @@ try {
   const pending = await req('/admin/login'); assert.equal(pending.status, 200); assert.match(await pending.text(), /being set up/);
   assert.equal((await req('/admin/api/events/1/upload', { method: 'PUT' })).status, 401);
   console.log('PASS fresh instance is unclaimable until setup is explicitly enabled');
+  const doctor = (overrides = {}) => {
+    const result = spawnSync(process.execPath, ['scripts/doctor.mjs','--json'], { env:{...env,...overrides}, encoding:'utf8', timeout:20000 });
+    assert.equal(result.status,0,result.stderr || result.stdout);
+    const report=JSON.parse(result.stdout);assert.equal(report.ok,true);return report;
+  };
+  const initialReport=doctor();assert.equal(initialReport.checks.find(c=>c.id==='owner').status,'warn');
+
   await stop(); await boot({ SETUP_ENABLED: '1' });
   const form = new URLSearchParams({ email: 'owner@example.invalid', password: randomBytes(24).toString('hex'), studioName: 'Self-host rehearsal' });
   assert.equal((await req('/setup', { method: 'POST', headers: { origin: 'https://foreign.invalid' }, body: form })).status, 403);
   const setup = await req('/setup', { method: 'POST', headers: { origin: base, accept: 'text/html' }, body: form });
   assert.equal(setup.status, 303); const cookie = setup.headers.get('set-cookie').split(';')[0];
   assert.equal((await req('/admin', { headers: { cookie } })).status, 200);
+  const enabledReport=doctor({SETUP_ENABLED:'1'});assert.equal(enabledReport.checks.find(c=>c.id==='setup-setting').status,'warn');
   await stop(); await boot();
   assert.equal((await req('/setup')).status, 404);
   assert.equal((await req('/admin', { headers: { cookie } })).status, 200);
   console.log('PASS private setup, cross-origin refusal and session persistence across restart');
+  const report=doctor();assert.equal(report.checks.find(c=>c.id==='owner').status,'pass');assert.equal(report.checks.find(c=>c.id==='setup-setting').status,'pass');
+  console.log('PASS read-only doctor covers fresh/private/completed owner setup with real HTTP checks');
   const backup = path.join(scratch, 'snapshot.sqlite');
   const snapshot = spawnSync(process.execPath, ['scripts/snapshot-db.mjs', backup], { env, encoding: 'utf8' });
   assert.equal(snapshot.status, 0, snapshot.stderr);

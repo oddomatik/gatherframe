@@ -5,6 +5,7 @@
   import SortingRecovery from '$lib/components/SortingRecovery.svelte';
   import {readDraft,draftKey,type DraftRecord} from '$lib/client/sorting-drafts';
   import OrganizePhotos from '$lib/components/OrganizePhotos.svelte';
+  import ProjectLaunchGuide from '$lib/components/ProjectLaunchGuide.svelte';
   import ProjectPresentation from '$lib/components/ProjectPresentation.svelte';
   import CollectionOverview from '$lib/components/CollectionOverview.svelte';
   import CollectionBrowser from '$lib/components/CollectionBrowser.svelte';
@@ -199,6 +200,7 @@
 
 <div id="project-photos" class="project-panel" role="tabpanel" aria-labelledby="project-tab-photos" hidden={activePanel !== 'photos'} tabindex="0">
 {#if data.admin&&!sortingBatch.length}<SortingRecovery actorId={data.admin.id} eventId={data.event.id} refresh={recoveryRefresh} onresume={resumeSorting} onundo={()=>invalidateAll()} />{/if}
+<ProjectLaunchGuide guide={data.launchGuide} eventId={data.event.id} onopen={switchPanel} />
 <section aria-label="Project readiness" class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-stone-200 pb-4 text-sm text-stone-600">
   <span><strong class="text-stone-900">{data.readiness.total}</strong> photos</span>
   <a href={`?g=${data.galleries.find(g=>g.isIntake)?.id??''}`} class="hover:underline"><strong class="text-stone-900">{data.readiness.intake}</strong> to sort</a>
