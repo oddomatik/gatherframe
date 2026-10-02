@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Read-only self-hosting doctor with actionable private owner setup, storage,
+  database, local HTTP and recovery guidance; structured output omits secrets
+  and identities and never changes installation state.
+
 - First-delivery guide with saved-state checks for imports, guest-ready photos,
   publication/closing time and usable scoped access. Links to existing controls;
   no automatic publication, messages or claimed recipient verification.

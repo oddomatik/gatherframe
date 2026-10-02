@@ -37,7 +37,7 @@ try {
   const source = await req('/source.tgz'); assert.equal(source.status, 200);
   const archive = path.join(dir, 'source.tgz'); await writeFile(archive, Buffer.from(await source.arrayBuffer()));
   const listing = execFileSync('tar', ['-tzf', archive], { encoding: 'utf8' }).split('\n');
-  assert.ok(listing.includes('LICENSE') && listing.includes('src/routes/setup/+page.server.ts'));
+  assert.ok(listing.includes('LICENSE') && listing.includes('src/routes/setup/+page.server.ts') && listing.includes('scripts/doctor.mjs'));
   assert.ok(!listing.some(name => /^(data\/|\.git\/|backups\/|\.env$)/.test(name)));
   // Enable private setup only for this loopback-only synthetic instance.
   const { readFile } = await import('node:fs/promises');
@@ -51,6 +51,13 @@ try {
   assert.equal((await req('/setup')).status, 404);
   assert.equal((await req('/admin', { headers: { cookie } })).status, 200);
   compose('exec', '-T', 'app', 'node', 'scripts/snapshot-db.mjs', '/data/backups/smoke.sqlite');
+  const report=JSON.parse(compose('exec','-T','app','node','scripts/doctor.mjs','--json'));
+  assert.equal(report.ok,true);assert.equal(report.checks.find(c=>c.id==='owner').status,'pass');
+  assert.equal(report.checks.find(c=>c.id==='storage-access').status,'pass');
+  assert.equal(report.checks.find(c=>c.id==='recovery').status,'warn');
+  assert.doesNotMatch(JSON.stringify(report),/container@example.invalid/);
+  console.log('PASS packaged doctor runs as the real non-root container user without exposing owner identity');
+
   console.log('PASS Compose: non-root writable volume, private setup, persistent login, source archive and database snapshot');
 } catch (error) {
   console.error(compose('logs', '--tail=40', 'app')); throw error;

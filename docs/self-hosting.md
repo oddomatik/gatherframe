@@ -81,6 +81,51 @@ docker compose exec app node scripts/reset-admin.cjs --email owner@example.com
 The second command requires an interactive terminal and prompts without echo. It revokes the selected
 owner’s sessions, not gallery data. Never pass the new password through command arguments or issue reports.
 
+## Read-only installation check
+
+Run inside the **existing** app container, so the command uses that instance's
+configuration, listener and mounted data:
+
+```sh
+docker compose exec -T app node scripts/doctor.mjs
+# Structured output for a private support report:
+docker compose exec -T app node scripts/doctor.mjs --json
+```
+
+The doctor checks runtime configuration, accessible data directories, free space,
+SQLite integrity/foreign keys, whether an owner exists, the setup setting, local
+health/setup/authentication behavior, and local snapshot presence. It prints
+fixed guidance and aggregate facts, not secrets, owner identities, private file
+paths, database rows, HTTP bodies or redirect locations. It sends requests only
+to the loopback app listener, never to PUBLIC_ORIGIN, and never follows redirects.
+It does not create/migrate databases, repair data, publish galleries, change
+credentials, contact recipients or enable backups. It does not start the app.
+
+For a direct Node install, load the same private configuration as the app:
+
+```sh
+node --env-file=.env scripts/doctor.mjs
+# Explicitly omit HTTP probes when inspecting a stopped installation:
+node --env-file=.env scripts/doctor.mjs --offline
+```
+
+`npm run doctor -- --json` is also available when the correct environment is
+already loaded. `--offline` marks HTTP checks **skipped**, not passed. Exit codes:
+**0** means no failed checks (warnings may remain), **1** means a failed check,
+**2** means an unsupported command option. A new installation without an owner
+gets private setup guidance; it is not automatically opened for claiming.
+
+After private owner creation, set `SETUP_ENABLED=0` and recreate the app using the
+same Compose project, volume and secret. Rerun the doctor, then sign in and follow
+[Your first delivery](first-delivery.md). An enabled setup flag remains a warning
+even when the existing-owner gate prevents claiming a second account.
+
+A snapshot's presence or age does **not** prove recovery; this remains a warning
+until you separately verify the database, media and configuration recovery plan.
+The doctor does not inspect snapshot contents or certify public HTTPS/routing,
+guest access, backup completeness or release/schema compatibility. App startup
+still refuses unknown migrations. Review any diagnostic output before sharing it.
+
 ## Common problems
 
 - **Pending owner page:** setup is closed. Enable only through the private procedure above.
