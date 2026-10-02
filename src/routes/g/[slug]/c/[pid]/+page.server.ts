@@ -8,5 +8,5 @@ export const load: PageServerLoad = (e) => {
   if (state !== 'ok') return { gallery:null, ...emptyTagBrowse };
   const gallery = getGalleryByPublicId(event.id,e.params.pid);
   if (!gallery || gallery.isArchived || gallery.isIntake) throw error(404,'Not found');
-  return { gallery:{id:gallery.id,publicId:gallery.publicId,name:''}, ...browseTags(event,e.url.searchParams,listPhotos(gallery.id)) };
+  return { gallery:{id:gallery.id,publicId:gallery.publicId,name:gallery.publicTitle ?? '',description:gallery.publicDescription}, ...browseTags(event,e.url.searchParams,listPhotos(gallery.id)) };
 };

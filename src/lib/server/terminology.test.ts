@@ -23,7 +23,7 @@ it('creates neutral projects without restricting subject matter or changing expl
 });
 it('saves a custom label through project settings and isolates it to that project', async () => {
   const first = createEvent({ name: 'Conference' }), second = createEvent({ name: 'Products', subjectLabel: 'Product code' });
-  expect(await action(first.id, { subjectLabel: '  Participant   name  ' })).toEqual({ ok: 'Event settings saved.' });
+  expect(await action(first.id, { subjectLabel: '  Participant   name  ' })).toEqual({ ok: 'Project settings saved.' });
   expect(getEvent(first.id)?.subjectLabel).toBe('Participant name');
   expect(getEvent(second.id)?.subjectLabel).toBe('Product code');
 });

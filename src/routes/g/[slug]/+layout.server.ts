@@ -18,6 +18,7 @@ export const load: LayoutServerLoad = (e) => {
       ]).toString()
     } : null,
     event: { id: event.id, slug: event.slug, name: event.name, tagline: state === 'ok' ? event.tagline : null, parentMessage: state === 'ok' ? event.parentMessage : null, subjectLabel: event.subjectLabel, orderingEnabled: !!event.orderingEnabled, variantPolicy: event.variantPolicy, versions: state === 'ok' ? listDeliveryVersions(event.id).filter(v => event.variantPolicy[v.key] !== 'disabled').map(v => ({ key:v.key, label:v.label })) : [], hasPassword: !!event.passwordHash },
+    galleryLayout: event.galleryLayout,
     access: state,
     isAdminPreview: isAdmin,
     studio: { name: s.studioName, photographer: s.photographerName, contact: s.contactLine, currency: s.currency },

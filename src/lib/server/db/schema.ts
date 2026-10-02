@@ -66,6 +66,7 @@ export const events = sqliteTable('events', {
   pickupInstructions: text('pickup_instructions'),
   tagline: text('tagline'),
   collectionCoverPolicy: text('collection_cover_policy').$type<'exclusive' | 'first'>().notNull().default('exclusive'),
+  galleryLayout: text('gallery_layout').$type<'directory' | 'simple' | 'sections'>().notNull().default('directory'),
   createdAt: createdAt(),
   updatedAt: text('updated_at').notNull()
 });
@@ -76,6 +77,8 @@ export const galleries = sqliteTable('galleries', {
   parentId: integer('parent_id'),
   publicId: text('public_id').notNull().unique(),
   name: text('name').notNull(),
+  publicTitle: text('public_title'),
+  publicDescription: text('public_description'),
   isArchived: integer('is_archived').notNull().default(0),
   isIntake: integer('is_intake').notNull().default(0),
   sortOrder: integer('sort_order').notNull().default(0),
@@ -103,7 +106,8 @@ export const photos = sqliteTable('photos', {
 /** Collections are independent of storage: one moment can belong to siblings and friends. */
 export const galleryPhotos = sqliteTable('gallery_photos', {
   galleryId: integer('gallery_id').notNull().references(() => galleries.id, { onDelete: 'cascade' }),
-  photoId: integer('photo_id').notNull().references(() => photos.id, { onDelete: 'cascade' })
+  photoId: integer('photo_id').notNull().references(() => photos.id, { onDelete: 'cascade' }),
+  position: integer('position')
 }, (t) => [uniqueIndex('gallery_photos_uq').on(t.galleryId, t.photoId), index('gallery_photos_photo_idx').on(t.photoId)]);
 
 /** Project-defined tags are many-to-many; never a file identity or child collection. */

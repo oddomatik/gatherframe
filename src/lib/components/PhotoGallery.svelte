@@ -109,11 +109,12 @@
 <svelte:head><title>Photos · {data.event.name}</title></svelte:head>
 {#if data.gallery}
 <main class="gallery-workspace">
-  <nav class="gallery-breadcrumb mb-7 flex flex-wrap items-center justify-between gap-3 text-sm"><a href={viewUrl(`/g/${data.event.slug}`)} class="button-quiet">← All collections</a><span class="eyebrow">{data.event.name}</span></nav>
+  <nav class="gallery-breadcrumb mb-7 flex flex-wrap items-center justify-between gap-3 text-sm"><a href={viewUrl(`/g/${data.event.slug}`)} class="button-quiet">← {data.galleryLayout === 'directory' ? 'All collections' : 'Gallery'}</a><span class="eyebrow">{data.event.name}</span></nav>
   <header class="gallery-heading mb-6 flex flex-wrap items-end justify-between gap-5">
     <div><p class="eyebrow">{data.photos.length} photos</p><h1 class="display-title mt-2 text-4xl sm:text-6xl">{#if data.gallery.name}{data.gallery.name}{:else}Your photos{/if}</h1></div>
     {#key data.gallery.publicId + page.url.pathname + page.url.search}<FamilyVisit eventId={data.event.id} pid={data.gallery.publicId||null} photoIds={data.photos.map(p=>p.id)} />{/key}
   </header>
+  {#if data.gallery?.description}<p class="mb-5 whitespace-pre-line break-words text-stone-600">{data.gallery.description}</p>{/if}
   {#if inApp}<p class="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">If downloads do not start in this browser, use its menu to open the gallery in Safari or Chrome.</p>{/if}
   <PublicTags tags={data.tags} selectedTags={data.selectedTags} tagMode={data.tagMode} path={page.url.pathname} base={`/g/${data.event.slug}`} />
   <section aria-label="Gallery actions" class="gallery-actions">
@@ -138,8 +139,8 @@
     </div>
   {/if}
   <details class="gallery-help mt-5 text-sm text-stone-600"><summary class="min-h-11 cursor-pointer py-3">About favorites &amp; downloads</summary><p class="pb-3">Favorites stay in this browser. Use Download for full-quality photos.</p></details>
-  {#if otherCollections.length}
-    <section class="mt-10 border-t border-stone-200 pt-6"><h2 class="eyebrow mb-4">More collections</h2><div class="flex gap-3 overflow-x-auto pb-3">{#each otherCollections as g, i (g.id)}<a href={viewUrl(`/g/${data.event.slug}/c/${g.publicId}`)} class="photo-card block w-40 shrink-0" aria-label={`Open another collection, ${g.photoCount} photos`}>{#if g.coverUrl}<img src={g.coverUrl} alt={`Collection ${i + 1}`} class="h-40 w-40 object-contain" loading="lazy" />{/if}<span class="block p-2 text-center text-xs">{g.photoCount} photos ↗</span></a>{/each}</div></section>
+  {#if otherCollections.length && !(data.galleryLayout === 'simple' && !data.gallery.publicId)}
+    <section class="mt-10 border-t border-stone-200 pt-6"><h2 class="eyebrow mb-4">More collections</h2><div class="flex gap-3 overflow-x-auto pb-3">{#each otherCollections as g, i (g.id)}<a href={viewUrl(`/g/${data.event.slug}/c/${g.publicId}`)} class="photo-card block w-40 shrink-0" aria-label={`Open another collection, ${g.photoCount} photos`}>{#if g.coverUrl}<img src={g.coverUrl} alt={`Collection ${i + 1}`} class="h-40 w-40 object-contain" loading="lazy" />{/if}<span class="block p-2 text-center text-xs">{#if g.publicTitle}<strong class="mb-1 block">{g.publicTitle}</strong>{/if}{g.photoCount} photos ↗</span></a>{/each}</div></section>
   {/if}
 </main>
 {#if selected.size}

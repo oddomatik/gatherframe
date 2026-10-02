@@ -7,7 +7,8 @@
   const input = 'mt-0.5 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm';
 </script>
 
-<h1 class="text-2xl font-semibold">Settings</h1>
+<h1 class="text-2xl font-semibold">Studio settings</h1>
+<a href="/admin/storage" class="mt-3 inline-block text-sm underline">Storage & media →</a>
 <form method="post" action="?/save" use:enhance class="mt-4 space-y-4">
   <section class="rounded-xl border border-stone-200 bg-white p-4">
     <h2 class="font-semibold">Studio</h2>

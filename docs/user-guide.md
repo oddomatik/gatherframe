@@ -31,6 +31,7 @@ requires device acceptance testing.
 
 ## Detailed guides
 
+- [Gallery layouts, public titles and collection sequences](gallery-presentation.md)
 - [Neutral language and project labels](terminology.md)
 - [Resumable uploads and recoverable sorting](upload-and-sorting-recovery.md)
 - [Lightroom sidecars](lightroom-sidecars.md)

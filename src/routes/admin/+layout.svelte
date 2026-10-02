@@ -14,14 +14,13 @@
     return () => document.removeEventListener('submit', guard, true);
   });
   const nav = [
-    { href: '/admin', label: 'Events' },
+    { href: '/admin', label: 'Projects' },
     { href: '/admin/visibility', label: 'Visibility' },
     { href: '/admin/orders', label: 'Orders' },
     { href: '/admin/catalog', label: 'Catalog' },
-    { href: '/admin/storage', label: 'Storage' },
     { href: '/admin/settings', label: 'Studio settings' }
   ];
-  const active = (href: string) => (href === '/admin' ? page.url.pathname === '/admin' || page.url.pathname.startsWith('/admin/events') : page.url.pathname.startsWith(href));
+  const active = (href: string) => (href === '/admin' ? page.url.pathname === '/admin' || page.url.pathname.startsWith('/admin/events') : (page.url.pathname.startsWith(href) || (href === '/admin/settings' && page.url.pathname.startsWith('/admin/storage'))));
 </script>
 
 <Toasts />

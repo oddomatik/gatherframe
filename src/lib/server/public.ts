@@ -38,13 +38,13 @@ export function publicPhotos(rows: PhotoWithFiles[], policy: Record<string, 'fre
 export function publicGalleries(rows: GalleryTile[], event: Event, shootDay: 1 | 2 | null = null, matchingIds?: Set<number>) {
   const counts = activeCollectionCounts(event.id);
   return rows.filter((g) => !g.isArchived && !g.isIntake).flatMap((g) => {
-    const photos = (sqlite.prepare(`SELECT p.id, p.stem, p.sort_order AS sortOrder, p.rendition_hash AS hash FROM photos p
+    const photos = (sqlite.prepare(`SELECT p.id, p.stem, p.sort_order AS sortOrder, gp.position AS collectionPosition, p.rendition_hash AS hash FROM photos p
       JOIN gallery_photos gp ON gp.photo_id = p.id WHERE gp.gallery_id = ? AND p.rendition_status = 'ready'
       ${shootDay === null ? '' : 'AND p.shoot_day = ?'} ORDER BY p.sort_order, p.id`)
       .all(...(shootDay === null ? [g.id] : [g.id, shootDay])) as { id: number; stem: string; sortOrder: number; hash: string | null }[]).filter(p => !matchingIds || matchingIds.has(p.id)).sort(comparePhotoOrder);
     if (!photos.length) return [];
     const cover = chooseCollectionCover(photos, g.coverPhotoId, event.collectionCoverPolicy ?? 'exclusive', counts)!;
-    return [{ id: g.id, publicId: g.publicId, photoIds: photos.map(p=>p.id), photoCount: photos.length, coverThumbId: cover.id, coverHash: cover.hash,
+    return [{ id: g.id, publicId: g.publicId, publicTitle: g.publicTitle, publicDescription: g.publicDescription, photoIds: photos.map(p=>p.id), photoCount: photos.length, coverThumbId: cover.id, coverHash: cover.hash,
       coverUrl: mediaUrl(event, cover.id, 'cover640', cover.hash) }];
   });
 }

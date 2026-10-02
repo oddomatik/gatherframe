@@ -87,7 +87,7 @@ async function assertVisible(ids) { await expect.poll(() => visibleIds(page)).to
  await settingsPage.goto(base+`/admin/events/${eventId}`,{waitUntil:'networkidle'});
  await settingsPage.getByRole('tab',{name:'Settings',exact:true}).click();
  await settingsPage.getByLabel('Order reference label',{exact:false}).fill('Participant name');
- await settingsPage.getByRole('button',{name:'Save event settings',exact:true}).click();
+ await settingsPage.getByRole('button',{name:'Save project settings',exact:true}).click();
  await expect.poll(()=>db.prepare('SELECT subject_label FROM events WHERE id=?').get(eventId).subject_label).toBe('Participant name');
  await settingsPage.reload({waitUntil:'networkidle'});await settingsPage.getByRole('tab',{name:'Settings',exact:true}).click();
  await expect(settingsPage.getByLabel('Order reference label',{exact:false})).toHaveValue('Participant name');

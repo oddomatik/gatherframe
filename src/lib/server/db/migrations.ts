@@ -220,5 +220,11 @@ CREATE TABLE delivery_states (
 );
 CREATE UNIQUE INDEX delivery_states_photo_role_uq ON delivery_states(photo_id,role);
 INSERT INTO delivery_states(photo_id,role,status,updated_at) SELECT photo_id,role,'uploaded',created_at FROM photo_files;
+` },
+  { id: '0016_gallery_presentation', sql: `
+ALTER TABLE events ADD COLUMN gallery_layout TEXT NOT NULL DEFAULT 'directory' CHECK(gallery_layout IN ('directory','simple','sections'));
+ALTER TABLE galleries ADD COLUMN public_title TEXT;
+ALTER TABLE galleries ADD COLUMN public_description TEXT;
+ALTER TABLE gallery_photos ADD COLUMN position INTEGER CHECK(position IS NULL OR position >= 0);
 ` }
 ];

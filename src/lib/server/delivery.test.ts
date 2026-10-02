@@ -77,14 +77,14 @@ function request(path:string,method='GET',body?:unknown,params:Record<string,str
 describe('delivery versions', () => {
   it('migrates legacy files without changing IDs, policies, hashes, memberships or bytes', () => {
     const legacy=new Database(':memory:'); legacy.pragma('foreign_keys=ON');
-    for(const m of MIGRATIONS.slice(0,-1)) legacy.exec(m.sql);
+    for(const m of MIGRATIONS.slice(0,MIGRATIONS.findIndex(m=>m.id==='0015_delivery_versions'))) legacy.exec(m.sql);
     legacy.exec(`INSERT INTO events(id,slug,name,variant_policy,created_at,updated_at) VALUES(1,'old','Legacy','{"print":"disabled","social":"free","raw":"paid"}','old','old');
       INSERT INTO galleries(id,event_id,public_id,name,created_at) VALUES(1,1,'old','Collection','old');
       INSERT INTO photos(id,gallery_id,stem,display_name,created_at,updated_at) VALUES(7,1,'edit-2','Edit 2','old','old');
-      INSERT INTO gallery_photos VALUES(1,7);
+      INSERT INTO gallery_photos(gallery_id,photo_id) VALUES(1,7);
       INSERT INTO photo_files(id,photo_id,role,original_filename,ext,mime,bytes,sha256,storage_path,created_at) VALUES(31,7,'print','Edit-2.jpg','jpg','image/jpeg',111,'hash','originals/kept.jpg','old');`);
     const before=legacy.prepare('SELECT id,photo_id,role,original_filename,sha256,storage_path,bytes FROM photo_files').all();
-    legacy.transaction(()=>legacy.exec(MIGRATIONS.at(-1)!.sql))();
+    legacy.transaction(()=>legacy.exec(MIGRATIONS.find(m=>m.id==='0015_delivery_versions')!.sql))();
     expect(legacy.prepare('SELECT id,photo_id,role,original_filename,sha256,storage_path,bytes FROM photo_files').all()).toEqual(before);
     expect(legacy.prepare('SELECT * FROM gallery_photos').all()).toEqual([{gallery_id:1,photo_id:7}]);
     expect(legacy.prepare('SELECT variant_policy FROM events').get()).toEqual({variant_policy:'{"print":"disabled","social":"free","raw":"paid"}'});

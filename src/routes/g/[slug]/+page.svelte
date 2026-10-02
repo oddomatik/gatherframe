@@ -4,6 +4,8 @@
   import { loadFamily,saveFamily,newPhotoCount, type FamilyState } from '$lib/client/family';
   import { toast } from '$lib/client/toast.svelte';
   import PublicTags from '$lib/components/PublicTags.svelte';
+  import PhotoGallery from '$lib/components/PhotoGallery.svelte';
+  import GallerySections from '$lib/components/GallerySections.svelte';
   import {tagQuery} from '$shared/tags';
   let {data}=$props();
   let family=$state<FamilyState>({pins:[],seen:{},positions:{}}), loaded=$state(false);
@@ -16,6 +18,11 @@
 </script>
 
 <svelte:head><title>{data.event.name} · Photos</title></svelte:head>
+{#if data.galleryLayout === 'simple'}
+  <PhotoGallery {data} />
+{:else if data.galleryLayout === 'sections'}
+  <GallerySections {data} />
+{:else}
 <main class="album-home">
   <nav class="album-masthead"><span>{data.studio.name}</span><a href={favoriteUrl()} class="button-quiet">♡ Favorites</a></nav>
   <header class:with-image={!!data.heroUrl} class="album-hero">
@@ -33,7 +40,7 @@
         alt={`${data.event.name} — project cover`} fetchpriority="high" decoding="async" />
       </picture><figcaption>{data.studio.name}</figcaption></figure>{/if}
   </header>
-  {#if pinned.length}<section class="mb-8" aria-label="Saved collections"><div class="album-section-heading"><h2 class="display-title text-3xl">Saved collections</h2><span class="text-xs text-stone-500">Saved on this device</span></div><div class="grid grid-cols-2 gap-3 sm:grid-cols-4">{#each pinned as g}<a class="collection-tile block" href={viewUrl(`/g/${data.event.slug}/c/${g.publicId}`)} aria-label={`Open saved collection ${data.galleries.indexOf(g)+1}`}><img src={g.coverUrl??''} alt="Saved collection cover" class="h-36 w-full object-contain" /><div class="p-3 text-sm">Collection {String(data.galleries.indexOf(g)+1).padStart(2,'0')}{#if newPhotoCount(family,g.publicId,g.photoIds??[])}<span class="ml-2 font-semibold text-emerald-800">{newPhotoCount(family,g.publicId,g.photoIds??[])} new</span>{/if}</div></a>{/each}</div></section>{/if}
+  {#if pinned.length}<section class="mb-8" aria-label="Saved collections"><div class="album-section-heading"><h2 class="display-title text-3xl">Saved collections</h2><span class="text-xs text-stone-500">Saved on this device</span></div><div class="grid grid-cols-2 gap-3 sm:grid-cols-4">{#each pinned as g}<a class="collection-tile block" href={viewUrl(`/g/${data.event.slug}/c/${g.publicId}`)} aria-label={`Open saved collection ${data.galleries.findIndex(candidate=>candidate.id===g.id)+1}`}><img src={g.coverUrl??''} alt="Saved collection cover" class="h-36 w-full object-contain" /><div class="p-3 text-sm">{g.publicTitle || `Collection ${String(data.galleries.findIndex(candidate=>candidate.id===g.id)+1).padStart(2,'0')}`}{#if newPhotoCount(family,g.publicId,g.photoIds??[])}<span class="ml-2 font-semibold text-emerald-800">{newPhotoCount(family,g.publicId,g.photoIds??[])} new</span>{/if}</div></a>{/each}</div></section>{/if}
   <section id="collections" class="album-collections" aria-label="Photo collections">
     <div class="album-section-heading"><div><p class="eyebrow">The collections</p><h2 class="display-title">Find your photos</h2></div><span class="text-sm text-stone-500">{data.galleries.length} collections</span></div>
     <PublicTags tags={data.tags} selectedTags={data.selectedTags} tagMode={data.tagMode} path={`/g/${data.event.slug}`} base={`/g/${data.event.slug}`} />
@@ -42,13 +49,14 @@
     {:else}
       <ul class="collection-grid parent-collection-grid">
         {#each data.galleries as g,i (g.id)}
-          <li><a href={viewUrl(`/g/${data.event.slug}/c/${g.publicId}`)} class="collection-tile block" aria-label={`Open photo collection ${i+1}, ${g.photoCount} photos${filtered?' matching these tags':''}`}>
+          <li><a href={viewUrl(`/g/${data.event.slug}/c/${g.publicId}`)} class="collection-tile block" aria-label={`Open ${g.publicTitle || `photo collection ${i+1}`}, ${g.photoCount} photos${filtered?' matching these tags':''}`}>
             <div class="collection-art">{#if g.coverUrl}<img src={g.coverUrl} alt={`Cover of photo collection ${i+1}`} loading="lazy" decoding="async" fetchpriority="low" />{/if}<span class="collection-open" aria-hidden="true">View photos ↗</span></div>
-            <div class="collection-caption"><h3>Collection {String(i+1).padStart(2,'0')}</h3><span>{g.photoCount} photos ↗</span></div>
-          </a><div class="mt-2 flex flex-wrap items-center justify-between gap-2"><button type="button" class="button-quiet text-sm" disabled={!loaded} aria-label={`${family.pins.includes(g.publicId)?'Unsave':'Save'} collection ${i+1}`} aria-pressed={family.pins.includes(g.publicId)} onclick={()=>pin(g.publicId)}>{family.pins.includes(g.publicId)?'★ Saved':'☆ Save collection'}</button>{#if newPhotoCount(family,g.publicId,g.photoIds??[])}<span class="text-xs font-medium text-emerald-800">{newPhotoCount(family,g.publicId,g.photoIds??[])} new since your visit</span>{/if}</div></li>
+            <div class="collection-caption"><h3>{g.publicTitle || `Collection ${String(i+1).padStart(2,'0')}`}</h3><span>{g.photoCount} photos ↗</span></div>
+          </a>{#if g.publicDescription}<p class="mt-2 whitespace-pre-line break-words text-sm text-stone-600">{g.publicDescription}</p>{/if}<div class="mt-2 flex flex-wrap items-center justify-between gap-2"><button type="button" class="button-quiet text-sm" disabled={!loaded} aria-label={`${family.pins.includes(g.publicId)?'Unsave':'Save'} collection ${i+1}`} aria-pressed={family.pins.includes(g.publicId)} onclick={()=>pin(g.publicId)}>{family.pins.includes(g.publicId)?'★ Saved':'☆ Save collection'}</button>{#if newPhotoCount(family,g.publicId,g.photoIds??[])}<span class="text-xs font-medium text-emerald-800">{newPhotoCount(family,g.publicId,g.photoIds??[])} new since your visit</span>{/if}</div></li>
         {/each}
       </ul>
     {/if}
   </section>
   <footer class="album-footer"><span>{data.studio.name}</span>{#if data.studio.contact}<span>{data.studio.contact}</span>{/if}</footer>
 </main>
+{/if}

@@ -101,7 +101,7 @@ describe('child collection covers',()=>{
     const fixture=new Database(':memory:');
     try {
       for(const m of MIGRATIONS.filter(m=>m.id!=='0009_collection_cover_policy'))fixture.exec(m.sql);
-      fixture.exec("INSERT INTO events(id,slug,name,variant_policy,created_at,updated_at) VALUES(1,'fixture','Existing','{}','before','before'); INSERT INTO galleries(id,event_id,public_id,name,cover_photo_id,created_at) VALUES(1,1,'child','Existing child',1,'before'); INSERT INTO photos(id,gallery_id,stem,display_name,created_at,updated_at) VALUES(1,1,'shot1','shot1','before','before'); INSERT INTO gallery_photos VALUES(1,1);");
+      fixture.exec("INSERT INTO events(id,slug,name,variant_policy,created_at,updated_at) VALUES(1,'fixture','Existing','{}','before','before'); INSERT INTO galleries(id,event_id,public_id,name,cover_photo_id,created_at) VALUES(1,1,'child','Existing child',1,'before'); INSERT INTO photos(id,gallery_id,stem,display_name,created_at,updated_at) VALUES(1,1,'shot1','shot1','before','before'); INSERT INTO gallery_photos(gallery_id,photo_id) VALUES(1,1);");
       const names=['events','galleries','photos','gallery_photos'];
       const before=Object.fromEntries(names.map(name=>[name,fixture.prepare(`SELECT * FROM ${name}`).all()]));
       fixture.exec(MIGRATIONS.find(m=>m.id==='0009_collection_cover_policy')!.sql);

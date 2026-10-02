@@ -8,5 +8,5 @@ export const GET: RequestHandler = (e) => {
   const pid = e.url.searchParams.get('g') ?? '';
   const gallery = getGalleryByPublicId(event.id, pid);
   if (!gallery || gallery.isArchived || gallery.isIntake) throw error(404, 'Not found');
-  return json({ gallery: { id: gallery.id, publicId: gallery.publicId, name: '' }, photos: publicPhotos(listPhotos(gallery.id), event.variantPolicy, event) });
+  return json({ gallery: { id: gallery.id, publicId: gallery.publicId, name: gallery.publicTitle ?? '', description:gallery.publicDescription }, photos: publicPhotos(listPhotos(gallery.id), event.variantPolicy, event) });
 };
