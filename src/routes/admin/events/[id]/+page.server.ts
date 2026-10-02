@@ -1,3 +1,5 @@
+import { projectLaunch } from '$shared/project-launch';
+import { listGuestGrants } from '$server/sharing';
 import { listDeliveryVersions } from '$server/delivery';
 import { normalizeOrderReferenceLabel } from '$shared/terminology';
 import { error, fail } from '@sveltejs/kit';
@@ -42,7 +44,10 @@ export const load: PageServerLoad = (e) => {
   const photos = (selected ? listPhotos(selected.id) : allPhotos).map((p) => ({ ...p, sidecars: byPhoto.get(p.id) ?? [] }));
   const base = loadCatalog(ev.catalogId, true);
   const overrides = db.select().from(schema.eventProducts).where(eq(schema.eventProducts.eventId, ev.id)).all();
+  const visiblePhotos = allPhotos.filter(p => p.renditionStatus === 'ready' && p.collections.some(g => !g.isIntake));
+  const usableInvitations = listGuestGrants(ev.id).filter(g => g.active && visiblePhotos.some(p => p.collections.some(c => !c.isIntake && g.collectionIds.includes(c.id)))).length;
   return {
+    launchGuide: projectLaunch({ total: allPhotos.length, visible: visiblePhotos.length, published: !!ev.isPublished, expiresAt: ev.expiresAt, scopedOnly: !!ev.scopedSharingOnly, usableInvitations }),
     presentationCollections: allGalleries.filter(g => !g.isIntake && !g.isArchived).sort((a,b) => a.sortOrder-b.sortOrder || a.id-b.id).map(g => ({
       id:g.id, name:g.name, publicTitle:g.publicTitle, publicDescription:g.publicDescription,
       photos:listPhotos(g.id).map(p => ({id:p.id, label:p.displayName, hash:p.renditionHash}))

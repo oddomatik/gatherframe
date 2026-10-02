@@ -121,6 +121,36 @@ try {
   const fresh=db.prepare("SELECT * FROM events WHERE name='Portrait session'").get();assert.equal(fresh.gallery_layout,'simple');assert.equal(fresh.ordering_enabled,0);assert.equal(fresh.is_published,0);
   await expect(page.getByRole('tab',{name:'Sales',exact:true})).toHaveCount(0);
   ok('New project UI defaults to a private simple gallery with optional print orders');
+  const guide = page.locator('details').filter({has:page.locator('summary', {hasText:'First delivery guide'})});
+  await expect(guide.locator('summary')).toContainText('1 of 4 setup checks satisfied');
+  await expect(guide.getByText('Start with a small set of photographer-authored exports.',{exact:true})).toBeVisible();
+  await guide.getByRole('button',{name:'Review settings',exact:true}).click();
+  await expect(page.getByRole('tab',{name:'Settings',exact:true})).toHaveAttribute('aria-selected','true');
+  await page.getByRole('tab',{name:'Photos',exact:true}).click();
+  await guide.getByRole('button',{name:'Review sharing',exact:true}).click();
+  await expect(page.getByRole('tab',{name:'Sharing',exact:true})).toHaveAttribute('aria-selected','true');
+  assert.deepEqual(db.prepare('SELECT * FROM events WHERE id=?').get(fresh.id),fresh);
+  await page.getByRole('tab',{name:'Photos',exact:true}).click();
+  await page.setViewportSize({width:390,height:844});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await shot('first-delivery-mobile');
+  await page.goto(base+projectPath,{waitUntil:'networkidle'});
+  await expect(page.locator('summary',{hasText:'First delivery guide'})).toContainText('4 of 4 setup checks satisfied');
+  db.prepare('UPDATE events SET scoped_sharing_only=1 WHERE id=?').run(project);
+  await page.reload({waitUntil:'networkidle'});
+  await expect(page.locator('summary',{hasText:'First delivery guide'})).toContainText('3 of 4 setup checks satisfied');
+  const guideGrant=Number(db.prepare('INSERT INTO guest_grants(event_id,token_hash,label,collection_ids,created_at) VALUES(?,?,?,?,?)').run(project,'synthetic-guide-only','Example invitation',JSON.stringify([a]),stamp).lastInsertRowid);
+  await page.reload({waitUntil:'networkidle'});
+  await expect(page.locator('summary',{hasText:'First delivery guide'})).toContainText('4 of 4 setup checks satisfied');
+  for (const change of [{expires_at:'2000-01-01'},{revoked_at:stamp},{collection_ids:JSON.stringify([tray])}]) {
+    db.prepare('UPDATE guest_grants SET expires_at=NULL,revoked_at=NULL,collection_ids=? WHERE id=?').run(JSON.stringify([a]),guideGrant);
+    const [column,value]=Object.entries(change)[0];db.prepare(`UPDATE guest_grants SET ${column}=? WHERE id=?`).run(value,guideGrant);
+    await page.reload({waitUntil:'networkidle'});
+    await expect(page.locator('summary',{hasText:'First delivery guide'})).toContainText('3 of 4 setup checks satisfied');
+  }
+  db.prepare('DELETE FROM guest_grants WHERE id=?').run(guideGrant);
+  db.prepare('UPDATE events SET scoped_sharing_only=0 WHERE id=?').run(project);
+  ok('First-delivery guidance reflects saved state, flags missing scoped access, navigates on mobile and never publishes');
+
 
   await page.goto(base+projectPath+'#project-presentation',{waitUntil:'networkidle'});
   await page.setViewportSize({width:390,height:844});await publicPage.setViewportSize({width:390,height:844});

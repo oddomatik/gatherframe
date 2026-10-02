@@ -106,3 +106,5 @@ Dependencies retain their own licenses; see [third-party notices](THIRD_PARTY_NO
 For security reports, follow [SECURITY.md](SECURITY.md), not a public issue containing private records.
 
 Scoped guest invitations and saved/submitted proof rounds are described in [the sharing and proofing guide](docs/scoped-sharing-and-proofing.md).
+
+New to the workflow? Follow [Your first delivery](docs/first-delivery.md).
