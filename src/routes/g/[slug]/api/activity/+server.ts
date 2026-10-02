@@ -1,3 +1,4 @@
+import { scopeAllowsPhoto, scopeAllowsCollection } from '$server/sharing';
 import { error, type RequestHandler } from '@sveltejs/kit';
 import { z } from 'zod';
 import { requireEventAccess } from '$server/guard';
@@ -18,10 +19,10 @@ export const POST:RequestHandler=async e=>{
  let body:unknown;try{body=JSON.parse(text);}catch{throw error(400,'Invalid event');}
  const parsed=Body.safeParse(body);if(!parsed.success)throw error(400,'Invalid event');
  const a=parsed.data;let galleryId:number|undefined;
- if(a.collection){const row=sqlite.prepare('SELECT id FROM galleries WHERE public_id=? AND event_id=? AND is_archived=0 AND is_intake=0').get(a.collection,event.id) as {id:number}|undefined;if(!row)throw error(404,'Collection unavailable');galleryId=row.id;}
+ if(a.collection){const row=sqlite.prepare('SELECT id FROM galleries WHERE public_id=? AND event_id=? AND is_archived=0 AND is_intake=0').get(a.collection,event.id) as {id:number}|undefined;if(!row||!scopeAllowsCollection(event,row.id))throw error(404,'Collection unavailable');galleryId=row.id;}
  if(['family_add','family_remove','collection_view'].includes(a.kind)&&!galleryId)throw error(400,'Collection required');
  if(['photo_view','favorite_add','favorite_remove'].includes(a.kind)&&!a.photoId)throw error(400,'Photo required');
- if(a.photoId&&!visiblePhoto(a.photoId,event.id))throw error(404,'Photo unavailable');
+ if(a.photoId&&!(visiblePhoto(a.photoId, event.id) && scopeAllowsPhoto(event,a.photoId)))throw error(404,'Photo unavailable');
  if(a.photoId&&galleryId&&!sqlite.prepare('SELECT 1 FROM gallery_photos WHERE gallery_id=? AND photo_id=?').get(galleryId,a.photoId))throw error(404,'Photo unavailable');
  recordActivity(event.id,sid,a.id,{kind:a.kind,galleryId,photoId:a.photoId});
  return new Response(null,{status:204});

@@ -1,3 +1,4 @@
+import { scopeAllowsPhoto } from '$server/sharing';
 import { fileIsCurrent, deliveryFilename, versionFor, currentFile } from '$server/delivery';
 import { trackDownload } from '$server/activity';
 import { error, type RequestHandler } from '@sveltejs/kit';
@@ -16,12 +17,12 @@ export const GET: RequestHandler = async (e) => {
   const row = db.select({ f: schema.photoFiles, stem: schema.photos.stem, galleryId: schema.galleries.id, eventId: schema.galleries.eventId })
     .from(schema.photoFiles).innerJoin(schema.photos, eq(schema.photos.id, schema.photoFiles.photoId)).innerJoin(schema.galleries, eq(schema.galleries.id, schema.photos.galleryId))
     .where(eq(schema.photoFiles.id, Number(e.params.fileId))).get();
-  if (!row || row.eventId !== event.id || !visiblePhoto(row.f.photoId, event.id)) throw error(404, 'Not found');
+  if (!row || row.eventId !== event.id || !(visiblePhoto(row.f.photoId, event.id) && scopeAllowsPhoto(event,row.f.photoId))) throw error(404, 'Not found');
   if (!row.f.downloadable || event.variantPolicy[row.f.role] !== 'free') throw error(403, 'This version is not available for download');
   if (!fileIsCurrent(row.f)) throw error(409, 'This version is being updated. Please try again shortly.');
   const assertStillAvailable = () => {
     const latestEvent = requireEventAccess(e).event, latest = currentFile(row.f.photoId, row.f.role);
-    if (!latest || latest.id !== row.f.id || latest.sha256 !== row.f.sha256 || !latest.downloadable || !fileIsCurrent(latest) || latestEvent.variantPolicy[latest.role] !== 'free' || !visiblePhoto(latest.photoId, latestEvent.id)) throw error(409, 'This download changed. Please choose it again from the gallery.');
+    if (!latest || latest.id !== row.f.id || latest.sha256 !== row.f.sha256 || !latest.downloadable || !fileIsCurrent(latest) || latestEvent.variantPolicy[latest.role] !== 'free' || !(visiblePhoto(latest.photoId, latestEvent.id) && scopeAllowsPhoto(latestEvent,latest.photoId))) throw error(409, 'This download changed. Please choose it again from the gallery.');
   };
   const filename = deliveryFilename(row.f, versionFor(event.id, row.f.role));
   let size: number;

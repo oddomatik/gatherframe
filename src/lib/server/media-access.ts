@@ -3,17 +3,18 @@ import { db, schema } from './db';
 import type { Event } from './db/schema';
 import { hmac, safeEqual, sha256 } from './secrets-ids';
 import { nowIso } from './env';
+import { grantActive, grantById, grantScope, scopeAllowsPhoto } from './sharing';
 
 export type MediaKind = 'thumb' | 'preview' | 'web' | 'cover640' | 'cover960' | 'cover1440';
-interface MediaClaim { p: number; e: number; k: MediaKind; f: string; exp: number; o?: number; }
-const fingerprint = (event: Event) => sha256(`${event.slug}:${event.passwordHash ?? ''}`).slice(0, 24);
+interface MediaClaim { p: number; e: number; k: MediaKind; f: string; exp: number; o?: number; g?:number; gv?:number; }
+const fingerprint = (event: Event) => sha256(`${event.sourceSlug ?? event.slug}:${event.passwordHash ?? ''}`).slice(0, 24);
 
 /** A numeric id is not a gallery invitation. Only mint these after an access check. */
 export function mediaUrl(event: Event, photoId: number, kind: MediaKind, hash?: string | null, orderId?: number): string {
   // Stable within an hour so rerendering a page does not bust every image URL.
   // Lifetime remains at most 24 hours; authorization is rechecked on each use.
   const expires = (Math.floor(Date.now() / 3600_000) + 24) * 3600_000;
-  const claim: MediaClaim = { p: photoId, e: event.id, k: kind, f: fingerprint(event), exp: expires, ...(orderId ? { o: orderId } : {}) };
+  const claim: MediaClaim = { p: photoId, e: event.id, k: kind, f: fingerprint(event), exp: expires, ...(orderId ? { o: orderId } : {}), ...(event.guestGrant ? {g:event.guestGrant.id,gv:event.guestGrant.version} : {}) };
   const body = Buffer.from(JSON.stringify(claim)).toString('base64url');
   return `/media/${photoId}/${kind}?t=${body}.${hmac(`media:${body}`)}${hash ? `&v=${encodeURIComponent(hash)}` : ''}${kind.startsWith('cover') ? '&cv=1' : ''}`;
 }
@@ -41,6 +42,10 @@ export function validMediaToken(token: string | null, event: Event, photoId: num
         .innerJoin(schema.orders, eq(schema.orders.id, schema.orderItems.orderId))
         .where(and(eq(schema.orders.id, c.o), eq(schema.orders.eventId, event.id), eq(schema.orderItemCells.photoId, photoId))).limit(1).get();
     }
+    if(c.g) {
+      const grant=grantById(c.g);
+      if(!grantActive(grant)||grant.event_id!==event.id||grant.version!==c.gv||!scopeAllowsPhoto({...event,guestGrant:grantScope(grant)},photoId))return false;
+    } else if(event.scopedSharingOnly)return false;
     return !!event.isPublished && (!event.expiresAt || event.expiresAt > nowIso()) && visiblePhoto(photoId, event.id);
   } catch { return false; }
 }

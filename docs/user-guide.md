@@ -45,3 +45,5 @@ requires device acceptance testing.
 Favorites and Saved collections stay in the current browser. Export important choices through the supported order/download
 workflow before clearing browser storage. Download completion means the server sent the file, not that the visitor
 saved it to Photos. Native phone sharing depends on device/browser support.
+
+For collection-limited delivery and submitted photo choices, see [Scoped invitations and proof selections](scoped-sharing-and-proofing.md).

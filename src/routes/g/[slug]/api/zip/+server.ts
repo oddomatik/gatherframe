@@ -1,3 +1,4 @@
+import { scopeAllowsPhoto } from '$server/sharing';
 import { versionKeySchema } from '$shared/delivery';
 import { fileIsCurrent, versionFor } from '$server/delivery';
 import { error, json, type RequestHandler } from '@sveltejs/kit';
@@ -24,7 +25,7 @@ export const POST: RequestHandler = async (e) => {
   if (!roles.length) throw error(400, 'Those versions are not available for download');
   // Photos must belong to this event; the payload only stores ids that passed.
   const owned = db.select({ id: schema.photos.id }).from(schema.photos).innerJoin(schema.galleries, eq(schema.galleries.id, schema.photos.galleryId))
-    .where(and(inArray(schema.photos.id, parsed.data.photoIds), eq(schema.galleries.eventId, event.id))).all().map((r) => r.id).filter((id) => visiblePhoto(id, event.id));
+    .where(and(inArray(schema.photos.id, parsed.data.photoIds), eq(schema.galleries.eventId, event.id))).all().map((r) => r.id).filter((id) => (visiblePhoto(id, event.id) && scopeAllowsPhoto(event,id)));
   if (owned.length !== new Set(parsed.data.photoIds).size) throw error(409, 'Some selected photos are no longer available. Your selection has been kept; please review it.');
   if (!owned.length) throw error(400, 'No photos found');
   const files = db.select().from(schema.photoFiles).where(and(inArray(schema.photoFiles.photoId, owned), inArray(schema.photoFiles.role, roles), eq(schema.photoFiles.downloadable, 1))).all().filter(fileIsCurrent);
@@ -32,6 +33,6 @@ export const POST: RequestHandler = async (e) => {
   try { await validateZipEntries(files.map((f) => ({ storagePath: f.storagePath, name: `photo-${f.photoId}`, expectedBytes: f.bytes, expectedSha256: f.sha256 })), getSettings().zipStreamMaxBytes); }
   catch (err) { if (err instanceof ZipError) throw error(err.status, err.message); throw err; }
   const token = randomToken(24);
-  db.insert(schema.downloadTokens).values({ token, eventId: event.id, visitorSid: sid, payload: { photoIds: owned, roles, files: files.map(f => ({ id: f.id, sha256: f.sha256 })) }, usesLeft: 5, expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(), createdAt: nowIso() }).run();
+  db.insert(schema.downloadTokens).values({ token, eventId: event.id, visitorSid: sid, payload: { photoIds: owned, roles, ...(event.guestGrant?{grant:{id:event.guestGrant.id,version:event.guestGrant.version}}:{}), files: files.map(f => ({ id: f.id, sha256: f.sha256 })) }, usesLeft: 5, expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(), createdAt: nowIso() }).run();
   return json({ url: `/g/${event.slug}/dl/${token}`, files: files.length });
 };

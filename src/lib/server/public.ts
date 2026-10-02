@@ -2,6 +2,7 @@ import { listDeliveryVersions, fileIsCurrent, deliveryFilename } from './deliver
 import type { PhotoWithFiles, GalleryTile } from './events';
 import type { Event } from './db/schema';
 import { sqlite } from './db';
+import { scopeAllowsCollection, scopeAllowsPhoto } from './sharing';
 import { mediaUrl } from './media-access';
 import { comparePhotoOrder } from '$shared/photo-order';
 import { activeCollectionCounts, chooseCollectionCover } from './collection-covers';
@@ -12,6 +13,10 @@ export interface PublicDayCounts { all: number; day1: number; day2: number; unas
 
 /** Count photos, not collection memberships: a friends photo is still one moment. */
 export function publicDayCounts(event: Event): PublicDayCounts {
+  if(event.guestGrant) {
+    const rows=(sqlite.prepare('SELECT id,shoot_day FROM photos WHERE rendition_status=?').all('ready') as {id:number;shoot_day:number|null}[]).filter(p=>scopeAllowsPhoto(event,p.id));
+    return {all:rows.length,day1:rows.filter(p=>p.shoot_day===1).length,day2:rows.filter(p=>p.shoot_day===2).length,unassigned:rows.filter(p=>p.shoot_day===null).length};
+  }
   return sqlite.prepare(`SELECT count(*) AS "all", coalesce(sum(shoot_day = 1), 0) AS day1,
     coalesce(sum(shoot_day = 2), 0) AS day2, coalesce(sum(shoot_day IS NULL), 0) AS unassigned
     FROM photos p WHERE p.rendition_status = 'ready' AND EXISTS (
@@ -23,7 +28,7 @@ export function publicDayCounts(event: Event): PublicDayCounts {
 /** Strip server-only fields and apply the event's variant policy (disabled roles are not offered). */
 export function publicPhotos(rows: PhotoWithFiles[], policy: Record<string, 'free' | 'disabled' | 'paid'>, event: Event): PublicPhoto[] {
   const versions = new Map(listDeliveryVersions(event.id).map(v => [v.key, v]));
-  return rows.filter((p) => p.renditionStatus === 'ready').map((p) => ({
+  return rows.filter((p) => p.renditionStatus === 'ready' && scopeAllowsPhoto(event,p.id)).map((p) => ({
     id: p.id, stem: `photo-${p.id}`, displayName: `Photo ${p.id}`, shootDay: p.shootDay ?? null, width: p.width, height: p.height, hash: p.renditionHash, ready: true,
     urls: { thumb: mediaUrl(event, p.id, 'thumb', p.renditionHash), preview: mediaUrl(event, p.id, 'preview', p.renditionHash), web: mediaUrl(event, p.id, 'web', p.renditionHash) },
     shareUrl: `/g/${event.slug}/p/${p.id}`,
@@ -36,8 +41,11 @@ export function publicPhotos(rows: PhotoWithFiles[], policy: Record<string, 'fre
 
 /** Private organization labels never leave the photographer workspace. */
 export function publicGalleries(rows: GalleryTile[], event: Event, shootDay: 1 | 2 | null = null, matchingIds?: Set<number>) {
-  const counts = activeCollectionCounts(event.id);
-  return rows.filter((g) => !g.isArchived && !g.isIntake).flatMap((g) => {
+  const counts = event.guestGrant ? new Map<number,number>() : activeCollectionCounts(event.id);
+  if(event.guestGrant) for(const row of sqlite.prepare('SELECT gp.photo_id AS photoId,g.id AS galleryId FROM gallery_photos gp JOIN galleries g ON g.id=gp.gallery_id WHERE g.event_id=? AND g.is_intake=0 AND g.is_archived=0').all(event.id) as {photoId:number;galleryId:number}[]) {
+    if(scopeAllowsCollection(event,row.galleryId))counts.set(row.photoId,(counts.get(row.photoId)??0)+1);
+  }
+  return rows.filter((g) => !g.isArchived && !g.isIntake && scopeAllowsCollection(event,g.id)).flatMap((g) => {
     const photos = (sqlite.prepare(`SELECT p.id, p.stem, p.sort_order AS sortOrder, gp.position AS collectionPosition, p.rendition_hash AS hash FROM photos p
       JOIN gallery_photos gp ON gp.photo_id = p.id WHERE gp.gallery_id = ? AND p.rendition_status = 'ready'
       ${shootDay === null ? '' : 'AND p.shoot_day = ?'} ORDER BY p.sort_order, p.id`)

@@ -226,5 +226,28 @@ ALTER TABLE events ADD COLUMN gallery_layout TEXT NOT NULL DEFAULT 'directory' C
 ALTER TABLE galleries ADD COLUMN public_title TEXT;
 ALTER TABLE galleries ADD COLUMN public_description TEXT;
 ALTER TABLE gallery_photos ADD COLUMN position INTEGER CHECK(position IS NULL OR position >= 0);
+` },
+  { id: '0017_scoped_sharing_and_proofs', sql: `
+ALTER TABLE events ADD COLUMN scoped_sharing_only INTEGER NOT NULL DEFAULT 0 CHECK(scoped_sharing_only IN (0,1));
+CREATE TABLE guest_grants (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+ token_hash TEXT NOT NULL UNIQUE, label TEXT NOT NULL, collection_ids TEXT NOT NULL,
+ downloads INTEGER NOT NULL DEFAULT 0 CHECK(downloads IN (0,1)), version INTEGER NOT NULL DEFAULT 1,
+ expires_at TEXT, revoked_at TEXT, created_at TEXT NOT NULL
+);
+CREATE INDEX guest_grants_event_idx ON guest_grants(event_id);
+CREATE TABLE proof_rounds (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+ grant_id INTEGER NOT NULL REFERENCES guest_grants(id) ON DELETE CASCADE,
+ title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','submitted','accepted','closed')),
+ version INTEGER NOT NULL DEFAULT 0, selection TEXT NOT NULL DEFAULT '[]', notes TEXT NOT NULL DEFAULT '{}',
+ message TEXT NOT NULL DEFAULT '', review_note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE INDEX proof_rounds_grant_idx ON proof_rounds(grant_id);
+CREATE TABLE proof_submissions (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, round_id INTEGER NOT NULL REFERENCES proof_rounds(id) ON DELETE CASCADE,
+ revision INTEGER NOT NULL, selection TEXT NOT NULL, notes TEXT NOT NULL, message TEXT NOT NULL,
+ submitted_at TEXT NOT NULL, UNIQUE(round_id,revision)
+);
 ` }
 ];

@@ -1,3 +1,4 @@
+import { scopeAllowsPhoto } from '$server/sharing';
 import { fileIsCurrent, currentFile, deliveryFilename, listDeliveryVersions } from '$server/delivery';
 import { trackDownload } from '$server/activity';
 import { error, type RequestHandler } from '@sveltejs/kit';
@@ -18,10 +19,11 @@ export const GET: RequestHandler = async (e) => {
   const { event, sid } = requireEventAccess(e);
   const t = db.select().from(schema.downloadTokens).where(eq(schema.downloadTokens.token, String(e.params.token))).get();
   if (!t || t.eventId !== event.id || t.expiresAt < nowIso() || t.usesLeft <= 0) throw error(410, 'This download link has expired. Please start the download again.');
+  if((t.payload.grant?.id??null)!==(event.guestGrant?.id??null)||(t.payload.grant?.version??null)!==(event.guestGrant?.version??null))throw error(403,'Start this download again from its original gallery invitation.');
   // Bound to the visitor cookie; N uses because iOS Safari fetches attachments twice.
   if (t.visitorSid !== sid) throw error(403, 'This download link belongs to another device');
   if (activeStreams >= MAX_STREAMS) return new Response('The server is busy building other downloads. Please try again in a moment.', { status: 503, headers: { 'retry-after': '20' } });
-  if (t.payload.roles.some((role) => event.variantPolicy[role] !== 'free') || t.payload.photoIds.some((id) => !visiblePhoto(id, event.id))) throw error(409, 'These downloads have changed. Please review your selection in the gallery.');
+  if (t.payload.roles.some((role) => event.variantPolicy[role] !== 'free') || t.payload.photoIds.some((id) => !(visiblePhoto(id, event.id) && scopeAllowsPhoto(event,id)))) throw error(409, 'These downloads have changed. Please review your selection in the gallery.');
 
   const rows = db.select({
     photoId: schema.photoFiles.photoId, fileId: schema.photoFiles.id, role: schema.photoFiles.role, path: schema.photoFiles.storagePath, filename: schema.photoFiles.originalFilename, ext: schema.photoFiles.ext, bytes: schema.photoFiles.bytes, sha256: schema.photoFiles.sha256,
@@ -50,7 +52,7 @@ export const GET: RequestHandler = async (e) => {
   stream.once('end', done); stream.once('error', done); stream.once('close', done);
   try {
     const latestEvent = requireEventAccess(e).event;
-    if (rows.some(r => { const file = currentFile(r.photoId, r.role); return !file || file.id !== r.fileId || file.sha256 !== r.sha256 || !file.downloadable || !fileIsCurrent(file) || latestEvent.variantPolicy[r.role] !== 'free' || !visiblePhoto(r.photoId, latestEvent.id); })) throw error(409, 'These downloads changed. Start a new download from the gallery.');
+    if (rows.some(r => { const file = currentFile(r.photoId, r.role); return !file || file.id !== r.fileId || file.sha256 !== r.sha256 || !file.downloadable || !fileIsCurrent(file) || latestEvent.variantPolicy[r.role] !== 'free' || !(visiblePhoto(r.photoId, latestEvent.id) && scopeAllowsPhoto(latestEvent,r.photoId)); })) throw error(409, 'These downloads changed. Start a new download from the gallery.');
     const consumed = db.update(schema.downloadTokens).set({ usesLeft: sql`${schema.downloadTokens.usesLeft} - 1` }).where(and(eq(schema.downloadTokens.token, t.token), sql`${schema.downloadTokens.usesLeft} > 0`)).run();
     if (!consumed.changes) throw error(410, 'This download link has expired. Please start the download again.');
     const now = nowIso();

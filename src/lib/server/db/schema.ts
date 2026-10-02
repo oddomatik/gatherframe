@@ -66,6 +66,7 @@ export const events = sqliteTable('events', {
   pickupInstructions: text('pickup_instructions'),
   tagline: text('tagline'),
   collectionCoverPolicy: text('collection_cover_policy').$type<'exclusive' | 'first'>().notNull().default('exclusive'),
+  scopedSharingOnly: integer('scoped_sharing_only').notNull().default(0),
   galleryLayout: text('gallery_layout').$type<'directory' | 'simple' | 'sections'>().notNull().default('directory'),
   createdAt: createdAt(),
   updatedAt: text('updated_at').notNull()
@@ -196,7 +197,7 @@ export const downloadTokens = sqliteTable('download_tokens', {
   token: text('token').primaryKey(),
   eventId: integer('event_id').notNull(),
   visitorSid: text('visitor_sid').notNull(),
-  payload: text('payload', { mode: 'json' }).$type<{ photoIds: number[]; roles: string[]; files?: { id: number; sha256: string }[] }>().notNull(),
+  payload: text('payload', { mode: 'json' }).$type<{ photoIds: number[]; roles: string[]; grant?: {id:number;version:number}; files?: { id: number; sha256: string }[] }>().notNull(),
   usesLeft: integer('uses_left').notNull(),
   expiresAt: text('expires_at').notNull(),
   createdAt: createdAt()
@@ -411,7 +412,8 @@ export const jobs = sqliteTable('jobs', {
   createdAt: createdAt()
 }, (t) => [index('jobs_status_run_idx').on(t.status, t.runAt)]);
 
-export type Event = typeof events.$inferSelect;
+export type GuestGrant = { id:number; version:number; collectionIds:number[]; downloads:boolean };
+export type Event = typeof events.$inferSelect & { guestGrant?:GuestGrant; sourceSlug?:string };
 export type Gallery = typeof galleries.$inferSelect;
 export type Photo = typeof photos.$inferSelect;
 export type PhotoFile = typeof photoFiles.$inferSelect;
@@ -447,3 +449,25 @@ export const orderWorkActions = sqliteTable('order_work_actions', {
   id: text('id').primaryKey(), orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
   intent: text('intent').notNull(), result: text('result', { mode: 'json' }).$type<{ message: string }>().notNull(), createdAt: createdAt()
 });
+
+
+/** Bearer invitation secrets are stored only as digests; collection scopes are explicit/live. */
+export const guestGrants = sqliteTable('guest_grants', {
+  id:id(), eventId:integer('event_id').notNull().references(()=>events.id,{onDelete:'cascade'}),
+  tokenHash:text('token_hash').notNull().unique(), label:text('label').notNull(),
+  collectionIds:text('collection_ids',{mode:'json'}).$type<number[]>().notNull(),
+  downloads:integer('downloads').notNull().default(0), version:integer('version').notNull().default(1),
+  expiresAt:text('expires_at'), revokedAt:text('revoked_at'), createdAt:createdAt()
+},t=>[index('guest_grants_event_idx').on(t.eventId)]);
+export const proofRounds = sqliteTable('proof_rounds', {
+  id:id(), eventId:integer('event_id').notNull().references(()=>events.id,{onDelete:'cascade'}),
+  grantId:integer('grant_id').notNull().references(()=>guestGrants.id,{onDelete:'cascade'}), title:text('title').notNull(),
+  status:text('status').$type<'open'|'submitted'|'accepted'|'closed'>().notNull().default('open'), version:integer('version').notNull().default(0),
+  selection:text('selection',{mode:'json'}).$type<number[]>().notNull().default([]), notes:text('notes',{mode:'json'}).$type<Record<string,string>>().notNull().default({}),
+  message:text('message').notNull().default(''),reviewNote:text('review_note').notNull().default(''),createdAt:createdAt(),updatedAt:text('updated_at').notNull()
+},t=>[index('proof_rounds_grant_idx').on(t.grantId)]);
+export const proofSubmissions = sqliteTable('proof_submissions', {
+  id:id(),roundId:integer('round_id').notNull().references(()=>proofRounds.id,{onDelete:'cascade'}),revision:integer('revision').notNull(),
+  selection:text('selection',{mode:'json'}).$type<number[]>().notNull(),notes:text('notes',{mode:'json'}).$type<Record<string,string>>().notNull(),
+  message:text('message').notNull(),submittedAt:text('submitted_at').notNull()
+},t=>[uniqueIndex('proof_submissions_round_revision_uq').on(t.roundId,t.revision)]);

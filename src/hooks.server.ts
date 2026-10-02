@@ -40,6 +40,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   }
 
   const response = await resolve(event);
+  if(adminRoute) response.headers.set('cache-control','private, no-store');
   response.headers.set('x-content-type-options', 'nosniff');
   response.headers.set('referrer-policy', 'same-origin');
   response.headers.set('x-frame-options', 'SAMEORIGIN');
@@ -55,6 +56,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 };
 
 export const handleError: HandleServerError = ({ error, event }) => {
-  console.error(`[${event.locals.requestId}] ${event.request.method} ${event.url.pathname}`, error);
+  console.error(`[${event.locals.requestId}] ${event.request.method} ${event.url.pathname.replace(/\/g\/s_[A-Za-z0-9_-]{43}/g,'/g/[invitation]')}`, error);
   return { message: 'Something went wrong on our side. Please try again.' };
 };

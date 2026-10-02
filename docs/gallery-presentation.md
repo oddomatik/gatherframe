@@ -38,7 +38,7 @@ Enable **Accept print orders** in Project settings when needed. The Sales tab an
 
 ## What this does not change
 
-Collection links remain views within project-wide access, not private family/client grants. Public titles do not create new permissions. Favorites remain browser-local, not submitted proof selections. Scoped sharing, proofing rounds, cross-project photo reuse, client/CRM entities and nested collection trees are separate capabilities.
+Ordinary collection links remain browsing views, not access grants. Public titles do not create permissions. Use [scoped invitations and proof selections](scoped-sharing-and-proofing.md) for restricted delivery and explicit submissions; favorites remain separate and browser-local. Cross-project photo reuse, client/CRM entities and nested collection trees remain separate capabilities.
 
 ## Upgrade and verification
 

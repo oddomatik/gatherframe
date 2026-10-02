@@ -12,6 +12,7 @@ import { buildVenmoLink } from '$shared/venmo';
 import type { Event } from './db/schema';
 import { sha256 } from './secrets-ids';
 import { quoteCart, acceptedQuote } from './quote';
+import { scopeAllowsPhoto } from './sharing';
 import { visiblePhoto } from './media-access';
 import { PAYMENT_METHODS } from '$shared/orders';
 
@@ -31,6 +32,7 @@ export function createOrder(input: { event: Event; cart: CartItem[]; customer: C
   const photoRequests = Object.fromEntries(Object.entries(input.customer.photoRequests ?? {}).filter(([,note])=>note.trim()).sort(([a],[b])=>Number(a)-Number(b)).map(([id,note])=>[id,note.trim()]));
   if (Object.keys(photoRequests).length > 200 || Object.values(photoRequests).join('').length > 20000 || Object.entries(photoRequests).some(([id,note])=>!/^[1-9][0-9]*$/.test(id)||!Number.isSafeInteger(Number(id))||note.length>500)) throw new OrderError(400, 'Check the photo requests.');
   const intentHash = sha256(JSON.stringify({ cart: input.cart, customer: { name: input.customer.name.trim(), email: input.customer.email?.trim() || null, phone: input.customer.phone?.trim() || null, subjectName: input.customer.subjectName?.trim() || null, notes: input.customer.notes?.trim() || null, ...(Object.keys(photoRequests).length ? {photoRequests} : {}), ...(input.customer.emailUpdates ? {emailUpdates:true} : {}) } }));
+  if(input.cart.some(i=>i.sheets.some(s=>s.cells.some(c=>c.photoId!==null&&!scopeAllowsPhoto(event,c.photoId)))))throw new OrderError(404,'Photo unavailable');
   const existing = db.select().from(schema.orders).where(and(eq(schema.orders.eventId, event.id), eq(schema.orders.idempotencyKey, input.idempotencyKey))).get();
   if (existing) {
     if (existing.visitorSid !== input.sid || existing.intentHash !== intentHash) throw new OrderError(409, 'This order attempt already saved different details. Open the saved order before making changes.');

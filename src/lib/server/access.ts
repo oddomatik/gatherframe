@@ -44,6 +44,7 @@ export type AccessState = 'ok' | 'locked' | 'expired' | 'unpublished';
 /** Whether this visitor may view the event. Admin preview bypasses password, draft state and expiry. */
 export function eventAccessState(event: Event, cookies: Cookies, isAdmin: boolean): AccessState {
   if (isAdmin) return 'ok';
+  if (event.scopedSharingOnly && !event.guestGrant) return 'unpublished';
   if (!event.isPublished) return 'unpublished';
   if (event.expiresAt && event.expiresAt < nowIso()) return 'expired';
   if (!event.passwordHash) return 'ok';
