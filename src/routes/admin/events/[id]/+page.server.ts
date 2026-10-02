@@ -1,3 +1,4 @@
+import { listDeliveryVersions } from '$server/delivery';
 import { normalizeOrderReferenceLabel } from '$shared/terminology';
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -16,8 +17,9 @@ import { photoRevision } from '$server/photo-state';
 import { compareCollectionNames } from '$shared/collection-order';
 import { linkPreview, readShareForm, saveLinkPreview } from '$server/link-preview';
 import { isHttpError } from '@sveltejs/kit';
+import { saveGalleryLayout, savePublicCollection, saveCollectionSequence, saveCollectionSequenceOrder } from '$server/presentation';
 
-function load_(id: number) { const ev = getEvent(id); if (!ev) throw error(404, 'Event not found'); return ev; }
+function load_(id: number) { const ev = getEvent(id); if (!ev) throw error(404, 'Project not found'); return ev; }
 function ownGallery(eventId: number, galleryId: number) { const g = getGallery(galleryId); if (!g || g.eventId !== eventId || g.isArchived) throw error(404, 'Collection not found'); return g; }
 export const load: PageServerLoad = (e) => {
   if (!e.locals.admin) throw error(401, 'Please sign in first');
@@ -41,8 +43,13 @@ export const load: PageServerLoad = (e) => {
   const base = loadCatalog(ev.catalogId, true);
   const overrides = db.select().from(schema.eventProducts).where(eq(schema.eventProducts.eventId, ev.id)).all();
   return {
+    presentationCollections: allGalleries.filter(g => !g.isIntake && !g.isArchived).sort((a,b) => a.sortOrder-b.sortOrder || a.id-b.id).map(g => ({
+      id:g.id, name:g.name, publicTitle:g.publicTitle, publicDescription:g.publicDescription,
+      photos:listPhotos(g.id).map(p => ({id:p.id, label:p.displayName, hash:p.renditionHash}))
+    })),
     linkPreview: { ...linkPreview(ev), source: undefined },
     sharePhotos: allPhotos.filter(p => p.renditionStatus === 'ready' && p.collections.some(g => !g.isIntake)).map(p => ({ id: p.id, label: p.displayName, hash: p.renditionHash, collections: p.collections.filter(g => !g.isIntake).map(g => g.name).join(' · ') })),
+    versions: listDeliveryVersions(ev.id),
     photoRevision: photoRevision(ev.id),
     event: { ...ev, passwordHash: ev.passwordHash ? 'set' : null }, galleries, archived: allGalleries.filter((g) => g.isArchived), selected, photos, publicOrigin: env.publicOrigin, tags: listTags(ev.id), tagAssignments: tagAssignments(ev.id), catalogs: listCatalogs(),
     readiness: { total: allPhotos.length, ready: allPhotos.filter((p) => p.renditionStatus === 'ready').length, failed: allPhotos.filter((p) => p.renditionStatus === 'failed').length, intake: galleries.filter((g) => g.isIntake).reduce((n, g) => n + g.photoCount, 0), missingPrint: allPhotos.filter((p) => !p.files.some((f) => f.role === 'print')).length },
@@ -51,6 +58,29 @@ export const load: PageServerLoad = (e) => {
   };
 };
 export const actions: Actions = {
+  presentation: async (e) => {
+    if (!e.locals.admin) throw error(401, 'Please sign in first');
+    const ev = load_(Number(e.params.id)), f = await e.request.formData();
+    try { saveGalleryLayout(ev.id, f.get('galleryLayout')); return { ok: 'Gallery layout saved. Access and publication are unchanged.' }; }
+    catch (err) { return fail(400, { error: err instanceof Error ? err.message : 'Could not save layout.' }); }
+  },
+  collectionPresentation: async (e) => {
+    if (!e.locals.admin) throw error(401, 'Please sign in first');
+    const ev = load_(Number(e.params.id)), f = await e.request.formData();
+    try {
+      sqlite.transaction(() => {
+        saveCollectionSequence(ev.id, Number(f.get('galleryId')), JSON.parse(String(f.get('sequence'))), JSON.parse(String(f.get('expected'))), f.get('reset') === '1');
+        savePublicCollection(ev.id, Number(f.get('galleryId')), f.get('publicTitle'), f.get('publicDescription'));
+      })();
+      return { ok: 'Public collection details and photo sequence saved.' };
+    } catch (err) { return fail(400, { error: err instanceof Error ? err.message : 'Could not save collection presentation.' }); }
+  },
+  collectionSequence: async (e) => {
+    if (!e.locals.admin) throw error(401, 'Please sign in first');
+    const ev = load_(Number(e.params.id)), f = await e.request.formData();
+    try { saveCollectionSequenceOrder(ev.id, JSON.parse(String(f.get('sequence'))), JSON.parse(String(f.get('expected')))); return { ok: 'Collection display order saved.' }; }
+    catch (err) { return fail(400, { error: err instanceof Error ? err.message : 'Could not save collection order.' }); }
+  },
   sharePreview: async (e) => {
     if (!e.locals.admin) throw error(401, 'Please sign in first');
     const ev = load_(Number(e.params.id));
@@ -83,7 +113,7 @@ export const actions: Actions = {
     try {
       const coverPolicy = f.has('collectionCoverPolicy') ? String(f.get('collectionCoverPolicy')) : ev.collectionCoverPolicy;
       if (coverPolicy !== 'exclusive' && coverPolicy !== 'first') return fail(400, { error: 'Choose a valid automatic cover rule.' });
-      const policy = Object.fromEntries(['social', 'print', 'raw'].map((role) => [role, f.get(`p_${role}`) === 'free' ? 'free' : 'disabled'])) as Record<string, 'free' | 'disabled'>;
+      const policy = { ...ev.variantPolicy, ...Object.fromEntries(listDeliveryVersions(ev.id).filter(v => f.has(`p_${v.key}`)).map(v => [v.key, f.get(`p_${v.key}`) === 'free' ? 'free' : 'disabled'])) } as typeof ev.variantPolicy;
       let expiresAt: string | null = null;
       const local = String(f.get('expiresLocal') ?? '');
       if (local) {
@@ -99,10 +129,10 @@ export const actions: Actions = {
         eventDate: String(f.get('eventDate') ?? '') || null, expiresAt,
         isPublished: f.get('isPublished') ? 1 : 0, orderingEnabled: f.get('orderingEnabled') ? 1 : 0, variantPolicy: policy,
         pickupInstructions: f.has('pickupInstructions') ? String(f.get('pickupInstructions') ?? '').trim().slice(0,2000) || null : ev.pickupInstructions,
-        catalogId: Number(f.get('catalogId')) || null, notes: String(f.get('notes') ?? '') || null, parentMessage: String(f.get('parentMessage') ?? '').trim().slice(0, 3000) || null
+        catalogId: f.has('catalogId') ? Number(f.get('catalogId')) || null : ev.catalogId, notes: String(f.get('notes') ?? '') || null, parentMessage: String(f.get('parentMessage') ?? '').trim().slice(0, 3000) || null
       });
-      return { ok: 'Event settings saved.' };
-    } catch (err) { return fail(400, { error: err instanceof Error ? err.message : 'Check the event settings.' }); }
+      return { ok: 'Project settings saved.' };
+    } catch (err) { return fail(400, { error: err instanceof Error ? err.message : 'Check the project settings.' }); }
   },
   password: async (e) => {
     const ev = load_(Number(e.params.id)); const f = await e.request.formData();
@@ -111,7 +141,7 @@ export const actions: Actions = {
     if (pw.length < 4) return fail(400, { error: 'Password must be at least 4 characters.' });
     updateEvent(ev.id, { passwordHash: await hashPassword(pw) }); return { ok: 'Password set.' };
   },
-  rotate: async (e) => { rotateSlug(load_(Number(e.params.id)).id); return { ok: 'New event link generated. The old link no longer works.' }; },
+  rotate: async (e) => { rotateSlug(load_(Number(e.params.id)).id); return { ok: 'New project link generated. The old link no longer works.' }; },
   addGalleries: async (e) => {
     const ev = load_(Number(e.params.id)); const f = await e.request.formData();
     const names = String(f.get('names') ?? '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
@@ -137,14 +167,14 @@ export const actions: Actions = {
     if (!f.has('photoId') || (photoId !== null && (!Number.isSafeInteger(photoId) || photoId <= 0))) return fail(400, { error: 'Choose a photo or use automatic cover.' });
     return setGalleryCover(g.id, photoId) ? { ok: photoId === null ? 'Automatic cover restored.' : 'Cover pinned.' } : fail(400, { error: 'Choose a ready photo from this collection.' });
   },
-  eventCover: async (e) => { const ev = load_(Number(e.params.id)); const f = await e.request.formData(); const pid = Number(f.get('photoId')) || null; if (pid && photoEventId(pid) !== ev.id) return fail(400, { error: 'Choose a photo from this event.' }); updateEvent(ev.id, { coverPhotoId: pid }); return { ok: 'Event cover chosen.' }; },
+  eventCover: async (e) => { const ev = load_(Number(e.params.id)); const f = await e.request.formData(); const pid = Number(f.get('photoId')) || null; if (pid && photoEventId(pid) !== ev.id) return fail(400, { error: 'Choose a photo from this project.' }); updateEvent(ev.id, { coverPhotoId: pid }); return { ok: 'Event cover chosen.' }; },
   overrides: async (e) => {
     const ev = load_(Number(e.params.id)); const f = await e.request.formData();
     try {
       const products = loadCatalog(ev.catalogId, true).products;
       const updates = products.map((p) => { const raw = String(f.get(`price_${p.id}`) ?? '').trim(); const cents = raw ? dollarsToCents(raw) : null; if (cents !== null && (!Number.isSafeInteger(cents) || cents < 0)) throw new Error('Prices must be zero or more.'); return { id: p.id, cents, active: f.get(`active_${p.id}`) === 'on' }; });
       sqlite.transaction(() => { for (const p of updates) setEventProduct(ev.id, p.id, { priceCentsOverride: p.cents, active: p.active }); })();
-      return { ok: 'Event pricing saved. Blank prices follow your catalog.' };
+      return { ok: 'Project pricing saved. Blank prices follow your catalog.' };
     } catch (err) { return fail(400, { error: err instanceof Error ? err.message : 'Check the prices.' }); }
   }
 };

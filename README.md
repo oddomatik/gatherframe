@@ -10,7 +10,9 @@ Run one application process per database. Managed hosting is a planned service, 
 ## What it does
 
 - Photo-first galleries, collection covers, project-defined tags and shareable branches.
+- [Adaptable gallery presentation](docs/gallery-presentation.md): direct photo grids, named story sections or collection directories, with optional public titles and independent collection sequences.
 - Lightroom-friendly full-resolution, social and RAW imports; private XMP/ACR companions.
+- [Named delivery versions](docs/delivery-versions.md): preserve your exports or generate optional smaller JPEGs, with custom upload overrides.
 - Resumable uploads, recoverable sorting, independent photo identity and shared collection membership.
 - Browser-local favorites and saved collections, individual/ZIP downloads and phone sharing preparation.
 - Configurable print products, order receipts, manual payment records and production/master approval.
@@ -102,3 +104,5 @@ Photos and customer records are **not** licensed under AGPL or included in that 
 Dependencies retain their own licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).
 
 For security reports, follow [SECURITY.md](SECURITY.md), not a public issue containing private records.
+
+Scoped guest invitations and saved/submitted proof rounds are described in [the sharing and proofing guide](docs/scoped-sharing-and-proofing.md).

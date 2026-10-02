@@ -1,6 +1,7 @@
 import { index, integer, real, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
 import type { SidecarMetadata } from '../sidecars';
 import type { SidecarKind } from '$shared/stem';
+import type { DeliveryRecipe } from '$shared/delivery';
 
 const id = () => integer('id').primaryKey({ autoIncrement: true });
 const createdAt = () => text('created_at').notNull();
@@ -56,6 +57,7 @@ export const events = sqliteTable('events', {
   sharePhotoId: integer('share_photo_id'),
   shareUploadHash: text('share_upload_hash'),
   variantPolicy: text('variant_policy', { mode: 'json' }).$type<Record<string, 'free' | 'disabled' | 'paid'>>().notNull(),
+  displaySourceRole: text('display_source_role'),
   orderingEnabled: integer('ordering_enabled').notNull().default(1),
   catalogId: integer('catalog_id'),
   stemSuffixPatterns: text('stem_suffix_patterns', { mode: 'json' }).$type<Record<string, string> | null>(),
@@ -64,6 +66,8 @@ export const events = sqliteTable('events', {
   pickupInstructions: text('pickup_instructions'),
   tagline: text('tagline'),
   collectionCoverPolicy: text('collection_cover_policy').$type<'exclusive' | 'first'>().notNull().default('exclusive'),
+  scopedSharingOnly: integer('scoped_sharing_only').notNull().default(0),
+  galleryLayout: text('gallery_layout').$type<'directory' | 'simple' | 'sections'>().notNull().default('directory'),
   createdAt: createdAt(),
   updatedAt: text('updated_at').notNull()
 });
@@ -74,6 +78,8 @@ export const galleries = sqliteTable('galleries', {
   parentId: integer('parent_id'),
   publicId: text('public_id').notNull().unique(),
   name: text('name').notNull(),
+  publicTitle: text('public_title'),
+  publicDescription: text('public_description'),
   isArchived: integer('is_archived').notNull().default(0),
   isIntake: integer('is_intake').notNull().default(0),
   sortOrder: integer('sort_order').notNull().default(0),
@@ -101,7 +107,8 @@ export const photos = sqliteTable('photos', {
 /** Collections are independent of storage: one moment can belong to siblings and friends. */
 export const galleryPhotos = sqliteTable('gallery_photos', {
   galleryId: integer('gallery_id').notNull().references(() => galleries.id, { onDelete: 'cascade' }),
-  photoId: integer('photo_id').notNull().references(() => photos.id, { onDelete: 'cascade' })
+  photoId: integer('photo_id').notNull().references(() => photos.id, { onDelete: 'cascade' }),
+  position: integer('position')
 }, (t) => [uniqueIndex('gallery_photos_uq').on(t.galleryId, t.photoId), index('gallery_photos_photo_idx').on(t.photoId)]);
 
 /** Project-defined tags are many-to-many; never a file identity or child collection. */
@@ -121,6 +128,14 @@ export const photoFiles = sqliteTable('photo_files', {
   id: id(),
   photoId: integer('photo_id').notNull().references(() => photos.id, { onDelete: 'cascade' }),
   role: text('role').notNull(),
+  origin: text('origin').$type<'uploaded' | 'generated'>().notNull().default('uploaded'),
+  revisionId: text('revision_id'),
+  sourceFileId: integer('source_file_id'),
+  sourceSha256: text('source_sha256'),
+  recipeHash: text('recipe_hash'),
+  recipe: text('recipe', { mode: 'json' }).$type<DeliveryRecipe | null>(),
+  available: integer('available').notNull().default(1),
+  needsReview: integer('needs_review').notNull().default(0),
   originalFilename: text('original_filename').notNull(),
   ext: text('ext').notNull(),
   mime: text('mime').notNull(),
@@ -133,6 +148,33 @@ export const photoFiles = sqliteTable('photo_files', {
   priceCents: integer('price_cents'),
   createdAt: createdAt()
 }, (t) => [uniqueIndex('photo_files_photo_role_uq').on(t.photoId, t.role)]);
+
+export const deliveryVersions = sqliteTable('delivery_versions', {
+  eventId: integer('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  key: text('key').notNull(), label: text('label').notNull(),
+  mode: text('mode').$type<'uploaded' | 'automatic'>().notNull().default('uploaded'),
+  sourceRole: text('source_role'), recipe: text('recipe', { mode: 'json' }).$type<DeliveryRecipe | null>(),
+  filenameMode: text('filename_mode').$type<'private' | 'original'>().notNull().default('private'),
+  folder: text('folder').notNull().default(''), sortOrder: integer('sort_order').notNull().default(0),
+  updatedAt: text('updated_at').notNull()
+}, (t) => [uniqueIndex('delivery_versions_event_key_uq').on(t.eventId, t.key)]);
+
+/** Immutable revision snapshots; current photo_files rows preserve legacy file URLs. */
+export const photoFileRevisions = sqliteTable('photo_file_revisions', {
+  id: text('id').primaryKey(), photoId: integer('photo_id').notNull().references(() => photos.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(), storagePath: text('storage_path').notNull(), sha256: text('sha256').notNull(),
+  snapshot: text('snapshot', { mode: 'json' }).$type<Record<string, unknown>>().notNull(), createdAt: createdAt()
+});
+
+export const deliveryStates = sqliteTable('delivery_states', {
+  photoId: integer('photo_id').notNull().references(() => photos.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(), generation: integer('generation').notNull().default(0),
+  status: text('status').$type<'queued' | 'processing' | 'ready' | 'failed' | 'waiting' | 'paused' | 'uploaded'>().notNull(),
+  sourceFileId: integer('source_file_id'), sourceSha256: text('source_sha256'),
+  replaceUploadSha256: text('replace_upload_sha256'),
+  recipe: text('recipe', { mode: 'json' }).$type<DeliveryRecipe | null>(), recipeHash: text('recipe_hash'),
+  lastError: text('last_error'), updatedAt: text('updated_at').notNull()
+}, (t) => [uniqueIndex('delivery_states_photo_role_uq').on(t.photoId, t.role)]);
 
 /** Lightroom originals remain private; these are deliberately separate from public photoFiles. */
 export const photoSidecars = sqliteTable('photo_sidecars', {
@@ -155,7 +197,7 @@ export const downloadTokens = sqliteTable('download_tokens', {
   token: text('token').primaryKey(),
   eventId: integer('event_id').notNull(),
   visitorSid: text('visitor_sid').notNull(),
-  payload: text('payload', { mode: 'json' }).$type<{ photoIds: number[]; roles: string[] }>().notNull(),
+  payload: text('payload', { mode: 'json' }).$type<{ photoIds: number[]; roles: string[]; grant?: {id:number;version:number}; files?: { id: number; sha256: string }[] }>().notNull(),
   usesLeft: integer('uses_left').notNull(),
   expiresAt: text('expires_at').notNull(),
   createdAt: createdAt()
@@ -370,7 +412,8 @@ export const jobs = sqliteTable('jobs', {
   createdAt: createdAt()
 }, (t) => [index('jobs_status_run_idx').on(t.status, t.runAt)]);
 
-export type Event = typeof events.$inferSelect;
+export type GuestGrant = { id:number; version:number; collectionIds:number[]; downloads:boolean };
+export type Event = typeof events.$inferSelect & { guestGrant?:GuestGrant; sourceSlug?:string };
 export type Gallery = typeof galleries.$inferSelect;
 export type Photo = typeof photos.$inferSelect;
 export type PhotoFile = typeof photoFiles.$inferSelect;
@@ -406,3 +449,25 @@ export const orderWorkActions = sqliteTable('order_work_actions', {
   id: text('id').primaryKey(), orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
   intent: text('intent').notNull(), result: text('result', { mode: 'json' }).$type<{ message: string }>().notNull(), createdAt: createdAt()
 });
+
+
+/** Bearer invitation secrets are stored only as digests; collection scopes are explicit/live. */
+export const guestGrants = sqliteTable('guest_grants', {
+  id:id(), eventId:integer('event_id').notNull().references(()=>events.id,{onDelete:'cascade'}),
+  tokenHash:text('token_hash').notNull().unique(), label:text('label').notNull(),
+  collectionIds:text('collection_ids',{mode:'json'}).$type<number[]>().notNull(),
+  downloads:integer('downloads').notNull().default(0), version:integer('version').notNull().default(1),
+  expiresAt:text('expires_at'), revokedAt:text('revoked_at'), createdAt:createdAt()
+},t=>[index('guest_grants_event_idx').on(t.eventId)]);
+export const proofRounds = sqliteTable('proof_rounds', {
+  id:id(), eventId:integer('event_id').notNull().references(()=>events.id,{onDelete:'cascade'}),
+  grantId:integer('grant_id').notNull().references(()=>guestGrants.id,{onDelete:'cascade'}), title:text('title').notNull(),
+  status:text('status').$type<'open'|'submitted'|'accepted'|'closed'>().notNull().default('open'), version:integer('version').notNull().default(0),
+  selection:text('selection',{mode:'json'}).$type<number[]>().notNull().default([]), notes:text('notes',{mode:'json'}).$type<Record<string,string>>().notNull().default({}),
+  message:text('message').notNull().default(''),reviewNote:text('review_note').notNull().default(''),createdAt:createdAt(),updatedAt:text('updated_at').notNull()
+},t=>[index('proof_rounds_grant_idx').on(t.grantId)]);
+export const proofSubmissions = sqliteTable('proof_submissions', {
+  id:id(),roundId:integer('round_id').notNull().references(()=>proofRounds.id,{onDelete:'cascade'}),revision:integer('revision').notNull(),
+  selection:text('selection',{mode:'json'}).$type<number[]>().notNull(),notes:text('notes',{mode:'json'}).$type<Record<string,string>>().notNull(),
+  message:text('message').notNull(),submittedAt:text('submitted_at').notNull()
+},t=>[uniqueIndex('proof_submissions_round_revision_uq').on(t.roundId,t.revision)]);

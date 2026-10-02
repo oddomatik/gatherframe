@@ -1,6 +1,6 @@
 # Neutral language and project labels
 
-Galleries use “Save collection” and “Saved collections”; the studio uses “guest access,” “gallery message” and “customer note.” New unnamed organizer collections use `Collection 001`, `Collection 002`, and so on. Technical hierarchy terms and internal identifiers are not roles.
+Galleries use “Save collection” and “Saved collections”; the studio uses “Projects,” “guest access,” “gallery message” and “customer note.” New unnamed organizer collections use `Collection 001`, `Collection 002`, and so on. Technical hierarchy terms and internal identifiers are not roles. A collection's private label is separate from the optional public title/description entered in [Presentation](gallery-presentation.md).
 
 ## Optional checkout reference
 

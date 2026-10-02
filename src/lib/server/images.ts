@@ -11,6 +11,7 @@ import { storage, withStorageLock } from './storage';
 import { materializeObject, storeFile, assertScratchSpace } from './blob-store';
 import { RAW_EXTENSIONS } from '$shared/stem';
 import { randomId } from './ids';
+import { withImageBudget } from './image-budget';
 
 sharp.concurrency(2);
 const SIZES = { thumb: 400, preview: 1600, web: 2560 } as const;
@@ -47,7 +48,11 @@ function exifDate(v: unknown): string | null {
 
 function preferredSource(photoId: number) {
   const files = db.select().from(schema.photoFiles).where(eq(schema.photoFiles.photoId, photoId)).all();
-  return SOURCE_PREFERENCE.map((role) => files.find((f) => f.role === role)).find(Boolean);
+  const preferred = db.select({ role: schema.events.displaySourceRole }).from(schema.photos)
+    .innerJoin(schema.galleries, eq(schema.galleries.id, schema.photos.galleryId))
+    .innerJoin(schema.events, eq(schema.events.id, schema.galleries.eventId)).where(eq(schema.photos.id, photoId)).get()?.role;
+  const authored = files.filter(f => f.origin === 'uploaded' && f.available);
+  return [preferred, ...SOURCE_PREFERENCE].map((role) => authored.find((f) => f.role === role)).find(Boolean) ?? authored[0];
 }
 
 /** Explicit, targeted owner retry; pending work is also recovered by the worker sweep. */
@@ -60,6 +65,9 @@ export function retryPhotoRendering(photoId: number): boolean {
 
 /** Immutable rendition sets, published only while their exact source is still current. */
 export async function renderPhoto(photoId: number): Promise<void> {
+  return withImageBudget(() => renderPhotoWithinBudget(photoId));
+}
+async function renderPhotoWithinBudget(photoId: number): Promise<void> {
   const photo = db.select().from(schema.photos).where(eq(schema.photos.id, photoId)).get();
   if (!photo) return;
   const gallery = db.select().from(schema.galleries).where(eq(schema.galleries.id, photo.galleryId)).get();

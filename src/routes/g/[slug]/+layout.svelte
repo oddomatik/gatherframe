@@ -53,6 +53,7 @@
     <div class="bg-amber-100 px-3 py-1 text-center text-xs text-amber-900">Photographer preview · your admin access bypasses passwords and publishing restrictions.</div>
   {/if}
   {#if data.event.parentMessage}<aside class="mx-auto mt-5 max-w-5xl px-4"><div class="notice whitespace-pre-line text-sm"><p class="eyebrow mb-2">A note from the studio</p>{data.event.parentMessage}</div></aside>{/if}
+  {#if data.scopedInvitation}<nav aria-label="Invitation navigation" class="mx-auto flex max-w-5xl flex-wrap gap-3 px-4 pt-4"><a class="button-quiet" href={`/g/${data.event.slug}`}>Gallery</a><a class="button-quiet" href={`/g/${data.event.slug}/proofs`}>Selection rounds</a></nav>{/if}
   {@render children()}
 {/if}
 

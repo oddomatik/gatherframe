@@ -45,7 +45,7 @@ try {
   db.prepare('UPDATE events SET is_published=1 WHERE id=?').run(id);
   const group=Number(db.prepare('INSERT INTO galleries(event_id,public_id,name,created_at) VALUES(?,?,?,?)').run(id,'group-fixture','Group',stamp).lastInsertRowid);
   const photo=Number(db.prepare("INSERT INTO photos(gallery_id,stem,display_name,rendition_status,created_at,updated_at) VALUES(?,?,?,'ready',?,?)").run(group,'group1','Group_1.jpg',stamp,stamp).lastInsertRowid);
-  db.prepare('INSERT INTO gallery_photos VALUES(?,?)').run(group,photo);
+  db.prepare('INSERT INTO gallery_photos(gallery_id,photo_id) VALUES(?,?)').run(group,photo);
   const dir=path.join(dataDir,`derivatives/${id}/${photo}`);await mkdir(dir,{recursive:true});
   const source=await sharp({create:{width:900,height:600,channels:3,background:'#cc3344'}}).webp().toBuffer();
   for(const kind of ['thumb','preview','web'])await writeFile(path.join(dir,`${kind}.webp`),source);

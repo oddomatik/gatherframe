@@ -1,6 +1,33 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 — 2026-10-02
+
+- Adaptable simple, story/chapters and directory gallery layouts, public collection
+  titles/descriptions, independent photo/chapter ordering and optional sales.
+- Collection-scoped invitations with expiry, rotation/revocation, download controls
+  and an explicit scoped-only mode that disables broad project links.
+- Persistent proof-selection drafts, submission, photographer feedback, acceptance,
+  reopening and immutable revision history; no automatic recipient notifications.
+- Optional interactive print-package planner.
+
+Upgrade notes: migrations through `0017_scoped_sharing_and_proofs` preserve existing
+project defaults and photo/file identities. Existing broad links remain enabled
+unless scoped-only access is explicitly selected; new-project defaults favor a
+simple gallery with sales off. Automatic delivery generation remains opt-in.
+Pre-upgrade database, media and configuration recovery points are required.
+Code-only rollback to 0.1.0 is unsupported after migration: use a verified isolated
+pre-upgrade recovery point and reconcile any subsequent writes.
+
+
+- Named delivery versions with unchanged photographer-authored exports, folder
+  mappings, explicit download filenames and optional generated Web JPEGs.
+- Configurable dimensions, quality, light sharpening and metadata handling;
+  sample previews, reviewed backfills, targeted retry and batch pause.
+- Immutable file revisions and source/recipe tracking; uploaded overrides and
+  newer source revisions fence in-flight work. Stale individual/ZIP downloads
+  are rejected, and existing projects migrate without automatic generation.
+- Shared image-processing limits and immediate queue refill between jobs;
+  custom-version download counts and integration-oriented service contracts.
 
 ## 0.1.0 — 2026-09-29
 

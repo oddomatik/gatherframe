@@ -45,13 +45,13 @@ try {
   db.prepare('UPDATE events SET is_published=1 WHERE id=?').run(id);
   const group=Number(db.prepare('INSERT INTO galleries(event_id,public_id,name,created_at) VALUES(?,?,?,?)').run(id,'group-fixture','Group',stamp).lastInsertRowid);
   const photo=Number(db.prepare("INSERT INTO photos(gallery_id,stem,display_name,rendition_status,created_at,updated_at) VALUES(?,?,?,'ready',?,?)").run(group,'group1','Group_1.jpg',stamp,stamp).lastInsertRowid);
-  db.prepare('INSERT INTO gallery_photos VALUES(?,?)').run(group,photo);
+  db.prepare('INSERT INTO gallery_photos(gallery_id,photo_id) VALUES(?,?)').run(group,photo);
   const dir=path.join(dataDir,`derivatives/${id}/${photo}`);await mkdir(dir,{recursive:true});
   const source=await sharp({create:{width:900,height:600,channels:3,background:'#cc3344'}}).webp().toBuffer();
   for(const kind of ['thumb','preview','web'])await writeFile(path.join(dir,`${kind}.webp`),source);
   for(let n=2;n<=96;n++){
     const pid=Number(db.prepare("INSERT INTO photos(gallery_id,stem,display_name,rendition_status,created_at,updated_at) VALUES(?,?,?,'ready',?,?)").run(group,'img'+n,`IMG_${n}.jpg`,stamp,stamp).lastInsertRowid);
-    db.prepare('INSERT INTO gallery_photos VALUES(?,?)').run(group,pid);
+    db.prepare('INSERT INTO gallery_photos(gallery_id,photo_id) VALUES(?,?)').run(group,pid);
     const pd=path.join(dataDir,`derivatives/${id}/${pid}`);await mkdir(pd,{recursive:true});
     for(const kind of ['thumb','preview'])await writeFile(path.join(pd,`${kind}.webp`),source);
   }
@@ -91,41 +91,41 @@ try {
   await expect(page.getByRole('searchbox',{name:'Find preview photo or collection'})).toHaveValue('IMG_9');
   await tab('Settings').click();await expect(fields).toHaveValue('A private draft tagline');
   ok('Switching between all workspaces preserves settings and sharing drafts without submitting anything');
-  await settings.getByRole('button',{name:'Save event settings',exact:true}).click();
+  await settings.getByRole('button',{name:'Save project settings',exact:true}).click();
   await expect.poll(()=>db.prepare('SELECT tagline FROM events WHERE id=?').get(id).tagline).toBe('A private draft tagline');
   await expect(settings.getByRole('status')).toHaveCount(0);
-  await fields.fill('Second saved tagline');await settings.getByRole('button',{name:'Save event settings',exact:true}).click();
+  await fields.fill('Second saved tagline');await settings.getByRole('button',{name:'Save project settings',exact:true}).click();
   await expect.poll(()=>db.prepare('SELECT tagline FROM events WHERE id=?').get(id).tagline).toBe('Second saved tagline');
   ok('Settings save repeatedly without resetting other fields or multiplying confirmation messages');
-  await tab('Pricing').click();await expect(pricing).toBeVisible();
+  await tab('Sales').click();await expect(pricing).toBeVisible();
   const price=pricing.locator('input[inputmode=decimal]').first();assert.ok(await price.count());
-  await price.fill('-5');await pricing.getByRole('button',{name:'Save event prices',exact:true}).click();
+  await price.fill('-5');await pricing.getByRole('button',{name:'Save project prices',exact:true}).click();
   await expect(pricing.getByRole('status')).toHaveText('Unsaved changes');
-  await tab('Photos').click();await tab('Pricing').click();await expect(price).toHaveValue('-5');
-  await price.fill('7.25');await pricing.getByRole('button',{name:'Save event prices',exact:true}).click();
+  await tab('Photos').click();await tab('Sales').click();await expect(price).toHaveValue('-5');
+  await price.fill('7.25');await pricing.getByRole('button',{name:'Save project prices',exact:true}).click();
   await expect(pricing.getByRole('status')).toHaveCount(0);
   ok('Pricing has its own workspace; invalid save retains the draft, valid save clears its dirty state');
   await tab('Settings').click();await fields.fill('Do not lose this');
   await expect(settings.getByRole('status')).toHaveText('Unsaved changes');
   let dialogs=0;page.once('dialog',d=>{dialogs++;void d.dismiss();});
-  await page.getByRole('link',{name:'← All events',exact:true}).click();
+  await page.getByRole('link',{name:'← All projects',exact:true}).click();
   await expect.poll(()=>dialogs).toBe(1);
   await expect(fields).toHaveValue('Do not lose this');
-  await settings.getByRole('button',{name:'Save event settings',exact:true}).click();
+  await settings.getByRole('button',{name:'Save project settings',exact:true}).click();
   await expect(settings.getByRole('status')).toHaveCount(0);
   await page.reload({waitUntil:'networkidle'});await expect(tab('Settings')).toHaveAttribute('aria-selected','true');
   await expect(fields).toHaveValue('Do not lose this');
   ok('Unsaved settings warn before leaving; direct settings hash and reload return to the settings workspace');
   await tab('Photos').click();await tab('Photos').focus();await page.keyboard.press('ArrowRight');
-  await expect(tab('Sharing')).toBeFocused();await expect(tab('Sharing')).toHaveAttribute('aria-selected','true');
-  await page.keyboard.press('End');await expect(tab('Pricing')).toBeFocused();
+  await expect(tab('Presentation')).toBeFocused();await expect(tab('Presentation')).toHaveAttribute('aria-selected','true');
+  await page.keyboard.press('End');await expect(tab('Settings')).toBeFocused();
   await page.keyboard.press('Home');await expect(tab('Photos')).toBeFocused();
   ok('Accessible tab keyboard controls support Left/Right and Home/End');
   await mkdir('/tmp/picture-day-admin-layout-proof',{recursive:true});
   await page.screenshot({path:'/tmp/picture-day-admin-layout-proof/desktop-photos.png'});
   await tab('Settings').click();await page.screenshot({path:'/tmp/picture-day-admin-layout-proof/desktop-settings.png'});
   await page.setViewportSize({width:390,height:844});
-  for(const name of ['Settings','Pricing','Sharing','Photos']){
+  for(const name of ['Settings','Sales','Sharing','Photos']){
     await tab(name).click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     assert.ok((await tab(name).boundingBox()).width>=44);
   }

@@ -72,7 +72,7 @@ describe('durable photo ingestion and versioned rendering', () => {
     await fs.unlink(storage.abs(file.storagePath));
     expect((await upload(buffer)).status).toBe('unchanged');
     expect(await fs.readFile(storage.abs(file.storagePath))).toEqual(buffer);
-    expect(db.select().from(schema.galleryPhotos).all()).toEqual([{ galleryId, photoId: first.photoId }]);
+    expect(db.select().from(schema.galleryPhotos).all()).toEqual([{ galleryId, photoId: first.photoId, position: null }]);
     expect(db.select().from(schema.jobs).all()).toHaveLength(1);
   });
 

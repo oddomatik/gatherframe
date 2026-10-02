@@ -1,3 +1,4 @@
+import { scopeAllowsCollection } from '$server/sharing';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { eventContext } from '$server/guard';
@@ -11,7 +12,7 @@ export const load: PageServerLoad = (e) => {
   if (state !== 'ok') return { gallery: null, photos: [], siblings: [], catalog: null, initialPhotoId: null, venmoHandle: '', fromFavorites: false, emailUpdatesAvailable: false };
   if (!event.orderingEnabled) throw redirect(302, `/g/${event.slug}/c/${e.params.pid}`);
   const gallery = getGalleryByPublicId(event.id, e.params.pid);
-  if (!gallery || gallery.isArchived || gallery.isIntake) throw error(404, 'Not found');
+  if (!gallery || gallery.isArchived || gallery.isIntake || !scopeAllowsCollection(event,gallery.id)) throw error(404, 'Not found');
   const { catalog } = eventCatalog(event.id, event.catalogId);
   const siblings = publicGalleries(listGalleries(event.id), event);
   const initial = Number(e.url.searchParams.get('photo'));

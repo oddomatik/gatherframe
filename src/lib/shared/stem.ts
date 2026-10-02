@@ -2,8 +2,11 @@
  * Filename stem normalization and role inference for photographer uploads.
  * Pure functions, shared by the browser (upload matrix) and the server (ingest).
  */
-export type VariantRole = 'social' | 'print' | 'raw';
+export type VariantRole = 'social' | 'print' | 'raw' | `v_${string}`;
 export const VARIANT_ROLES: VariantRole[] = ['social', 'print', 'raw'];
+export function isVariantRole(role: unknown): role is VariantRole {
+  return typeof role === 'string' && /^(print|social|raw|v_[a-z0-9]{16})$/.test(role);
+}
 /** Private companions are upload roles, never parent-downloadable image variants. */
 export type SidecarKind = 'xmp' | 'acr';
 export type UploadRole = VariantRole | SidecarKind;
@@ -110,7 +113,7 @@ export function sidecarRole(filename: string): SidecarKind | null {
 
 /** A sidecar stays private even if it is selected in the RAW or full-size picker. */
 export function inferUploadRole(input: Omit<InferRoleInput, 'zoneRole'> & { zoneRole?: UploadRole | null }): UploadRole {
-  return sidecarRole(input.filename) ?? inferRole({ ...input, zoneRole: VARIANT_ROLES.includes(input.zoneRole as VariantRole) ? input.zoneRole as VariantRole : null });
+  return sidecarRole(input.filename) ?? inferRole({ ...input, zoneRole: isVariantRole(input.zoneRole) ? input.zoneRole : null });
 }
 
 /** Group a batch of filenames by stem, for the pre-upload matrix. */

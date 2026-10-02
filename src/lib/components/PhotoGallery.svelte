@@ -41,9 +41,9 @@
   const orderingCollection = $derived(data.gallery?.publicId || data.siblings[0]?.publicId);
   const otherCollections = $derived(data.siblings.filter(g => g.publicId !== data.gallery?.publicId));
   function viewUrl(path=page.url.pathname){return path+tagQuery(data.selectedTags,data.tagMode);}
-  const roleNames: Record<string, string> = { social: 'Easy sharing', print: 'Full-resolution photo', raw: 'Camera RAW' };
-  const roleDescriptions: Record<string, string> = { social: 'A smaller, finished image for messages and social posts.', print: 'The largest finished file available. Best for keeping and printing.', raw: 'An unprocessed camera file for photo-editing software. Usually very large.' };
-  const availableRoles = $derived(['print', 'social', 'raw'].filter(r => data.event.variantPolicy[r] === 'free' && data.photos.some(p => sheetPhotoIds.includes(p.id) && p.files.some(f => f.role === r && f.downloadable))));
+  const roleNames = $derived<Record<string, string>>(Object.fromEntries(data.event.versions.map(v => [v.key,v.label])));
+  const roleDescriptions: Record<string, string> = { social: 'A smaller, finished image for messages and social posts.', print: 'A finished image supplied by the photographer.', raw: 'An unprocessed camera file for photo-editing software. Usually very large.' };
+  const availableRoles = $derived(data.event.versions.map(v => v.key).filter(r => data.event.variantPolicy[r] === 'free' && data.photos.some(p => sheetPhotoIds.includes(p.id) && p.files.some(f => f.role === r && f.downloadable))));
   function toggle(id: number) { const next = new Set(selected); if (next.has(id)) next.delete(id); else next.add(id); selected = next; }
   function favorite(id: number) {
     const next = new Set(favorites);
@@ -60,16 +60,21 @@
   function openSheet(ids: number[]) {
     previewId = null; handedBatches=[]; lastBatch=null; sheetPhotoIds = ids; downloadError = ''; downloadStarted = false;
     const hasPrint = data.photos.some(p => ids.includes(p.id) && p.files.some(f => f.role === 'print' && f.downloadable));
-    roles = { print: hasPrint, social: !hasPrint, raw: false }; sheetOpen = true;
+    const first = hasPrint ? 'print' : data.event.versions.find(v => ids.every(id => data.photos.find(p => p.id === id)?.files.some(f => f.role === v.key && f.downloadable)))?.key;
+    roles = first ? { [first]: true } : {}; sheetOpen = true;
   }
   const summary = $derived.by(() => {
     const chosen = Object.entries(roles).filter(([r, on]) => on && availableRoles.includes(r)).map(([r]) => r);
     let bytes = 0; let files = 0;
-    const perRole: Record<string, { have: number; total: number }> = {};
-    for (const r of chosen) perRole[r] = { have: 0, total: sheetPhotoIds.length };
-    for (const p of data.photos.filter(p => sheetPhotoIds.includes(p.id))) for (const f of p.files) if (chosen.includes(f.role) && f.downloadable) { bytes += f.bytes; files++; perRole[f.role].have++; }
+    const perRole: Record<string, { have: number; total: number; sizes: Set<string> }> = {};
+    for (const r of availableRoles) perRole[r] = { have: 0, total: sheetPhotoIds.length, sizes: new Set() };
+    for (const p of data.photos.filter(p => sheetPhotoIds.includes(p.id))) for (const f of p.files) if (f.downloadable && perRole[f.role]) {
+      perRole[f.role].have++; if (f.width && f.height) perRole[f.role].sizes.add(`${f.width} × ${f.height} px`);
+      if (chosen.includes(f.role)) { bytes += f.bytes; files++; }
+    }
     return { chosen, bytes, files, perRole };
   });
+  const incomplete = $derived(summary.chosen.some(r => summary.perRole[r].have < summary.perRole[r].total));
   const chosenFiles=$derived(data.photos.filter(p=>sheetPhotoIds.includes(p.id)).flatMap(p=>p.files.filter(f=>summary.chosen.includes(f.role)&&f.downloadable)));
   const batches=$derived.by(()=>{
     const groups:{ids:number[];bytes:number}[]=[];let group={ids:[] as number[],bytes:0};
@@ -81,6 +86,7 @@
   const downloadChoiceKey=$derived(chosenFiles.map(f=>f.id).join(','));
   $effect(()=>{downloadChoiceKey;handedBatches=[];downloadStarted=false;downloadError='';});
   async function download(ids=sheetPhotoIds,batch:number|null=null) {
+    if (incomplete) return;
     busy = true; downloadError = ''; downloadStarted = false; lastBatch=batch;
     try {
       if (ids.length === 1 && data.photos.find(p=>p.id===ids[0])?.files.filter(f=>summary.chosen.includes(f.role)&&f.downloadable).length === 1) {
@@ -103,11 +109,12 @@
 <svelte:head><title>Photos · {data.event.name}</title></svelte:head>
 {#if data.gallery}
 <main class="gallery-workspace">
-  <nav class="gallery-breadcrumb mb-7 flex flex-wrap items-center justify-between gap-3 text-sm"><a href={viewUrl(`/g/${data.event.slug}`)} class="button-quiet">← All collections</a><span class="eyebrow">{data.event.name}</span></nav>
+  <nav class="gallery-breadcrumb mb-7 flex flex-wrap items-center justify-between gap-3 text-sm"><a href={viewUrl(`/g/${data.event.slug}`)} class="button-quiet">← {data.galleryLayout === 'directory' ? 'All collections' : 'Gallery'}</a><span class="eyebrow">{data.event.name}</span></nav>
   <header class="gallery-heading mb-6 flex flex-wrap items-end justify-between gap-5">
     <div><p class="eyebrow">{data.photos.length} photos</p><h1 class="display-title mt-2 text-4xl sm:text-6xl">{#if data.gallery.name}{data.gallery.name}{:else}Your photos{/if}</h1></div>
     {#key data.gallery.publicId + page.url.pathname + page.url.search}<FamilyVisit eventId={data.event.id} pid={data.gallery.publicId||null} photoIds={data.photos.map(p=>p.id)} />{/key}
   </header>
+  {#if data.gallery?.description}<p class="mb-5 whitespace-pre-line break-words text-stone-600">{data.gallery.description}</p>{/if}
   {#if inApp}<p class="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">If downloads do not start in this browser, use its menu to open the gallery in Safari or Chrome.</p>{/if}
   <PublicTags tags={data.tags} selectedTags={data.selectedTags} tagMode={data.tagMode} path={page.url.pathname} base={`/g/${data.event.slug}`} />
   <section aria-label="Gallery actions" class="gallery-actions">
@@ -132,8 +139,8 @@
     </div>
   {/if}
   <details class="gallery-help mt-5 text-sm text-stone-600"><summary class="min-h-11 cursor-pointer py-3">About favorites &amp; downloads</summary><p class="pb-3">Favorites stay in this browser. Use Download for full-quality photos.</p></details>
-  {#if otherCollections.length}
-    <section class="mt-10 border-t border-stone-200 pt-6"><h2 class="eyebrow mb-4">More collections</h2><div class="flex gap-3 overflow-x-auto pb-3">{#each otherCollections as g, i (g.id)}<a href={viewUrl(`/g/${data.event.slug}/c/${g.publicId}`)} class="photo-card block w-40 shrink-0" aria-label={`Open another collection, ${g.photoCount} photos`}>{#if g.coverUrl}<img src={g.coverUrl} alt={`Collection ${i + 1}`} class="h-40 w-40 object-contain" loading="lazy" />{/if}<span class="block p-2 text-center text-xs">{g.photoCount} photos ↗</span></a>{/each}</div></section>
+  {#if otherCollections.length && !(data.galleryLayout === 'simple' && !data.gallery.publicId)}
+    <section class="mt-10 border-t border-stone-200 pt-6"><h2 class="eyebrow mb-4">More collections</h2><div class="flex gap-3 overflow-x-auto pb-3">{#each otherCollections as g, i (g.id)}<a href={viewUrl(`/g/${data.event.slug}/c/${g.publicId}`)} class="photo-card block w-40 shrink-0" aria-label={`Open another collection, ${g.photoCount} photos`}>{#if g.coverUrl}<img src={g.coverUrl} alt={`Collection ${i + 1}`} class="h-40 w-40 object-contain" loading="lazy" />{/if}<span class="block p-2 text-center text-xs">{#if g.publicTitle}<strong class="mb-1 block">{g.publicTitle}</strong>{/if}{g.photoCount} photos ↗</span></a>{/each}</div></section>
   {/if}
 </main>
 {#if selected.size}
@@ -141,21 +148,21 @@
 {/if}
 <PhotoPreview photos={visible} onselect={id=>previewId=id} photo={previewPhoto} slug={data.event.slug} index={previewIndex} total={visible.length} onclose={() => previewId = null} ondownload={() => openSheet([previewId!])} onprevious={previewIndex >= 0 && visible.length > 1 ? () => stepPreview(-1) : undefined} onnext={previewIndex >= 0 && visible.length > 1 ? () => stepPreview(1) : undefined} favorite={previewId !== null && favorites.has(previewId)} onfavorite={() => favorite(previewId!)} />
 <BottomSheet open={sheetOpen} title={sheetPhotoIds.length === 1 ? 'Download photo' : `Download ${sheetPhotoIds.length} photos`} onclose={() => sheetOpen = false}>
-  <p class="mb-4 text-sm text-stone-600">Choose a size.</p>
+  <p class="mb-4 text-sm text-stone-600">Choose a version.</p>
   {#if availableRoles.length === 0}<p class="notice text-sm">A finished download is not available for these photos yet. Please check back or contact the photographer.</p>{/if}
   <fieldset disabled={busy} class="space-y-3">
     {#each availableRoles.filter(r => r !== 'raw') as r (r)}{@render roleChoice(r)}{/each}
     {#if availableRoles.includes('raw')}<details class="rounded-xl border border-stone-200 p-3"><summary class="cursor-pointer py-1 text-sm text-stone-600">Advanced: camera RAW</summary><div class="mt-3">{@render roleChoice('raw')}</div></details>{/if}
   </fieldset>
-  {#key chosenFiles.map(f=>f.id).join(',')}<PhoneSave slug={data.event.slug} files={chosenFiles} />{/key}
-  <div class="mt-5 flex flex-wrap items-center justify-between gap-3"><span class="text-sm text-stone-600">{summary.files} file{summary.files === 1 ? '' : 's'} · about {formatBytes(summary.bytes)}</span><button type="button" class="button-primary" disabled={busy || !summary.files} onclick={()=>download()}>{busy ? 'Checking selected files…' : downloadStarted ? 'Download again' : 'Download files ↓'}</button></div>
+  {#if incomplete}<p role="status" class="notice mt-3 text-sm">Some selected versions are not ready for every photo. Choose another version or select fewer photos.</p>{:else}{#key chosenFiles.map(f=>f.id).join(',')}<PhoneSave slug={data.event.slug} files={chosenFiles} />{/key}{/if}
+  <div class="mt-5 flex flex-wrap items-center justify-between gap-3"><span class="text-sm text-stone-600">{summary.files} file{summary.files === 1 ? '' : 's'} · about {formatBytes(summary.bytes)}</span><button type="button" class="button-primary" disabled={busy || incomplete || !summary.files} onclick={()=>download()}>{busy ? 'Checking selected files…' : downloadStarted ? 'Download again' : 'Download files ↓'}</button></div>
   {#if busy}<p role="status" class="mt-3 text-sm text-stone-600">Checking files and preparing your download{lastBatch!==null?` · part ${lastBatch+1}`:''}…</p>{/if}
-  {#if batches.length>1}<details class="mt-4 rounded-xl border border-stone-200 p-3"><summary class="cursor-pointer font-medium">Download in smaller parts · {batches.length} parts</summary><p class="my-2 text-xs text-stone-500">Start one part at a time. “Started” means handed to your browser; check Downloads for completion.</p><div class="grid gap-2 sm:grid-cols-2">{#each batches as batch,i}<button type="button" class="button-secondary" disabled={busy} onclick={()=>download(batch.ids,i)}>Part {i+1} · {batch.ids.length} photos · {formatBytes(batch.bytes)}{handedBatches.includes(i)?' · Started':''}</button>{/each}</div></details>{/if}
+  {#if batches.length>1}<details class="mt-4 rounded-xl border border-stone-200 p-3"><summary class="cursor-pointer font-medium">Download in smaller parts · {batches.length} parts</summary><p class="my-2 text-xs text-stone-500">Start one part at a time. “Started” means handed to your browser; check Downloads for completion.</p><div class="grid gap-2 sm:grid-cols-2">{#each batches as batch,i}<button type="button" class="button-secondary" disabled={busy || incomplete} onclick={()=>download(batch.ids,i)}>Part {i+1} · {batch.ids.length} photos · {formatBytes(batch.bytes)}{handedBatches.includes(i)?' · Started':''}</button>{/each}</div></details>{/if}
   {#if summary.bytes > 300 * 1024 * 1024}<p class="mt-3 text-xs text-amber-800">This is a large download. Wi-Fi and a little extra space on your device will help.</p>{/if}
   {#if downloadError}<p role="alert" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{downloadError} Your choices have been kept.</p>{/if}
   {#if downloadStarted}<div role="status" class="notice mt-4 text-sm"><strong>Your browser has been asked to download.</strong><p class="mt-1">Check Downloads or your Files app. Multiple photos arrive in a ZIP folder; open it to unpack them, then save the photos you want. Keep this page open while it starts.</p><p class="mt-2">Nothing appeared? Try again, or download fewer photos at a time. Your selection is still here.</p></div>{/if}
 </BottomSheet>
 {/if}
 {#snippet roleChoice(r: string)}
-  <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 bg-white p-4"><input type="checkbox" class="mt-1 h-5 w-5 shrink-0" bind:checked={roles[r]} /><span><span class="block font-semibold">{roleNames[r]}</span><span class="mt-1 block text-sm text-stone-600">{roleDescriptions[r]}</span>{#if summary.perRole[r]}<span class="mt-1 block text-xs text-stone-500">Available for {summary.perRole[r].have} of {summary.perRole[r].total} selected photos</span>{/if}</span></label>
+  <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 bg-white p-4"><input type="checkbox" class="mt-1 h-5 w-5 shrink-0" bind:checked={roles[r]} /><span><span class="block font-semibold">{roleNames[r]}</span><span class="mt-1 block text-sm text-stone-600">{roleDescriptions[r] ?? 'A finished version provided by the photographer.'}</span>{#if summary.perRole[r]}<span class="mt-1 block text-xs text-stone-500">{#if summary.perRole[r].sizes.size === 1}{[...summary.perRole[r].sizes][0]} · {/if}Available for {summary.perRole[r].have} of {summary.perRole[r].total} selected photos</span>{/if}</span></label>
 {/snippet}

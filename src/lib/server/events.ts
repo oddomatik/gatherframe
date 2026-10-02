@@ -5,6 +5,7 @@ import { nowIso } from './env';
 import { randomId } from './ids';
 import type { Event } from './db/schema';
 import { archiveCollection } from './grouping';
+import { ensureDeliveryVersions } from './delivery';
 import { comparePhotoOrder } from '$shared/photo-order';
 import { compareCollectionNames } from '$shared/collection-order';
 import { activeCollectionCounts, chooseCollectionCover } from './collection-covers';
@@ -12,7 +13,7 @@ import { activeCollectionCounts, chooseCollectionCover } from './collection-cove
 export function listEvents() {
   return db.select({
     id: schema.events.id, slug: schema.events.slug, name: schema.events.name, eventDate: schema.events.eventDate,
-    isPublished: schema.events.isPublished, expiresAt: schema.events.expiresAt, subjectLabel: schema.events.subjectLabel, createdAt: schema.events.createdAt,
+    isPublished: schema.events.isPublished, orderingEnabled: schema.events.orderingEnabled, expiresAt: schema.events.expiresAt, subjectLabel: schema.events.subjectLabel, createdAt: schema.events.createdAt,
     galleryCount: sql<number>`(select count(*) from galleries g where g.event_id = events.id)`,
     photoCount: sql<number>`(select count(*) from photos p join galleries g on g.id = p.gallery_id where g.event_id = events.id)`,
     newOrders: sql<number>`(select count(*) from orders o where o.event_id = events.id and o.status = 'new')`
@@ -22,13 +23,17 @@ export function listEvents() {
 export function getEvent(id: number): Event | undefined { return db.select().from(schema.events).where(eq(schema.events.id, id)).get(); }
 export function getEventBySlug(slug: string): Event | undefined { return db.select().from(schema.events).where(eq(schema.events.slug, slug)).get(); }
 
-export function createEvent(input: { name: string; subjectLabel?: string; eventDate?: string | null; catalogId?: number | null }): Event {
+export function createEvent(input: { name: string; subjectLabel?: string; eventDate?: string | null; catalogId?: number | null; orderingEnabled?: boolean; galleryLayout?: 'directory' | 'simple' | 'sections' }): Event {
   const now = nowIso();
-  return db.insert(schema.events).values({
+  return sqlite.transaction(() => {
+  const event = db.insert(schema.events).values({
     slug: uniqueSlug(), name: input.name.trim(), subjectLabel: normalizeOrderReferenceLabel(input.subjectLabel), eventDate: input.eventDate || null,
-    variantPolicy: { social: 'free', print: 'free', raw: 'free' }, isPublished: 0, orderingEnabled: 1, catalogId: input.catalogId ?? null,
+    variantPolicy: { social: 'free', print: 'free', raw: 'free' }, isPublished: 0, orderingEnabled: input.orderingEnabled === false ? 0 : 1, galleryLayout: input.galleryLayout ?? 'directory', catalogId: input.catalogId ?? null,
     createdAt: now, updatedAt: now
   }).returning().get();
+  ensureDeliveryVersions(event.id);
+  return event;
+  })();
 }
 
 function uniqueSlug(): string {
@@ -57,20 +62,20 @@ export function deleteEvent(id: number): { ok: boolean; reason?: string } {
 // ---- galleries -------------------------------------------------------------
 
 export interface GalleryTile {
-  id: number; publicId: string; name: string; sortOrder: number; coverPhotoId: number | null;
+  id: number; publicId: string; name: string; publicTitle: string | null; publicDescription: string | null; sortOrder: number; coverPhotoId: number | null;
   isIntake: number; isArchived: number; photoCount: number; coverThumbId: number | null; coverHash: string | null;
 }
 
 export function listGalleries(eventId: number, includeArchived = false): GalleryTile[] {
   const policy = getEvent(eventId)?.collectionCoverPolicy ?? 'exclusive';
   const counts = activeCollectionCounts(eventId);
-  return sqlite.prepare(`SELECT g.id, g.public_id AS publicId, g.name, g.sort_order AS sortOrder,
+  return sqlite.prepare(`SELECT g.id, g.public_id AS publicId, g.name, g.public_title AS publicTitle, g.public_description AS publicDescription, g.sort_order AS sortOrder,
     g.cover_photo_id AS coverPhotoId, g.is_intake AS isIntake, g.is_archived AS isArchived,
     (SELECT count(*) FROM gallery_photos gp WHERE gp.gallery_id = g.id) AS photoCount
     FROM galleries g WHERE g.event_id = ? ${includeArchived ? '' : 'AND g.is_archived = 0'} ORDER BY g.is_intake DESC, g.sort_order, g.id`)
     .all(eventId).map((row) => {
       const r = row as Omit<GalleryTile, 'coverHash' | 'coverThumbId'>;
-      const candidates = sqlite.prepare(`SELECT p.id, p.stem, p.sort_order AS sortOrder, p.rendition_hash AS hash
+      const candidates = sqlite.prepare(`SELECT p.id, p.stem, p.sort_order AS sortOrder, gp.position AS collectionPosition, p.rendition_hash AS hash
         FROM photos p JOIN gallery_photos gp ON gp.photo_id = p.id
         WHERE gp.gallery_id = ? AND p.rendition_status = 'ready'`).all(r.id) as { id: number; stem: string; sortOrder: number; hash: string | null }[];
       const cover = chooseCollectionCover(candidates, r.coverPhotoId, r.isIntake ? 'first' : policy, counts);
@@ -129,13 +134,14 @@ export function deleteGallery(id: number): { ok: boolean; reason?: string } {
 
 export interface PhotoWithFiles {
   id: number; galleryId: number; stem: string; displayName: string; takenAt: string | null; shootDay: 1 | 2 | null; width: number | null; height: number | null;
-  renditionStatus: string; renditionHash: string | null; sortOrder: number; collections: { id: number; name: string; isIntake: number }[]; renderError: string | null;
-  files: { id: number; role: string; originalFilename: string; ext: string; mime: string; bytes: number; width: number | null; height: number | null; downloadable: number; sha256: string }[];
+  renditionStatus: string; renditionHash: string | null; sortOrder: number; collectionPosition?: number | null; collections: { id: number; name: string; isIntake: number }[]; renderError: string | null;
+  files: { id: number; role: string; originalFilename: string; ext: string; mime: string; bytes: number; width: number | null; height: number | null; downloadable: number; sha256: string; photoId?: number; origin?: 'uploaded' | 'generated'; available?: number; sourceFileId?: number | null; sourceSha256?: string | null }[];
 }
 
 export function listPhotos(galleryId: number): PhotoWithFiles[] {
-  const ids = sqlite.prepare('SELECT photo_id FROM gallery_photos WHERE gallery_id = ?').all(galleryId) as { photo_id: number }[];
-  return photosWithFiles(ids.map((p) => p.photo_id));
+  const ids = sqlite.prepare('SELECT photo_id, position FROM gallery_photos WHERE gallery_id = ?').all(galleryId) as { photo_id: number; position: number | null }[];
+  const positions = new Map(ids.map(p => [p.photo_id, p.position]));
+  return photosWithFiles(ids.map((p) => p.photo_id)).map(p => ({ ...p, collectionPosition: positions.get(p.id) ?? null })).sort(comparePhotoOrder);
 }
 export function listEventPhotos(eventId: number): PhotoWithFiles[] {
   const ids = sqlite.prepare('SELECT p.id FROM photos p JOIN galleries g ON g.id = p.gallery_id WHERE g.event_id = ?').all(eventId) as { id: number }[];
@@ -149,7 +155,7 @@ function photosWithFiles(ids: number[]): PhotoWithFiles[] {
   const byPhoto = new Map<number, PhotoWithFiles['files']>();
   for (const f of files) {
     const arr = byPhoto.get(f.photoId) ?? [];
-    arr.push({ id: f.id, role: f.role, originalFilename: f.originalFilename, ext: f.ext, mime: f.mime, bytes: f.bytes, width: f.width, height: f.height, downloadable: f.downloadable, sha256: f.sha256 });
+    arr.push({ photoId: f.photoId, origin:f.origin, available:f.available, sourceFileId:f.sourceFileId, sourceSha256:f.sourceSha256, id: f.id, role: f.role, originalFilename: f.originalFilename, ext: f.ext, mime: f.mime, bytes: f.bytes, width: f.width, height: f.height, downloadable: f.downloadable, sha256: f.sha256 });
     byPhoto.set(f.photoId, arr);
   }
   return rows.map((r) => ({ ...r, files: (byPhoto.get(r.id) ?? []).sort((a, b) => ['social', 'print', 'raw'].indexOf(a.role) - ['social', 'print', 'raw'].indexOf(b.role)),

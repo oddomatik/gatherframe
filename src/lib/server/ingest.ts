@@ -12,12 +12,13 @@ import { storeFile, assertScratchSpace } from './blob-store';
 import { randomId } from './ids';
 import { enqueue } from './jobs';
 import { probeDimensions } from './images';
-import { normalizeStem, RAW_EXTENSIONS, IMAGE_EXTENSIONS, type VariantRole, type UploadRole, VARIANT_ROLES, sidecarRole } from '$shared/stem';
+import { normalizeStem, RAW_EXTENSIONS, IMAGE_EXTENSIONS, type VariantRole, type UploadRole, sidecarRole } from '$shared/stem';
 import { getSettings } from './settings';
 import { photoKey } from '$shared/photo-key';
 import { listImportPhotos } from './import-photos';
 import { MAX_XMP_BYTES, readSidecarMetadata } from './sidecars';
 import { parseShootDay, type ShootDay } from '$shared/shoot-days';
+import { versionFor, archiveFileRevision, deliverySourceChanged, pauseDelivery } from './delivery';
 
 const MIME: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', tif: 'image/tiff', tiff: 'image/tiff', heic: 'image/heic', heif: 'image/heif', avif: 'image/avif', dng: 'image/x-adobe-dng' };
 
@@ -87,7 +88,7 @@ export async function ingestUpload(input: UploadInput): Promise<IngestResult> {
   if (!IMAGE_EXTENSIONS.has(ext) && !RAW_EXTENSIONS.has(ext) && !sidecar) throw new IngestError(415, `unsupported file type .${ext}`);
   if (!input.body) throw new IngestError(400, 'empty body');
   const role: UploadRole = sidecar ?? input.role ?? (RAW_EXTENSIONS.has(ext) ? 'raw' : roleHint ?? (input.longEdgePx != null ? (input.longEdgePx < 2500 ? 'social' : 'print') : 'print'));
-  if (!sidecar && !VARIANT_ROLES.includes(role as VariantRole)) throw new IngestError(400, 'bad role');
+  if (!sidecar && !versionFor(input.eventId, role)) throw new IngestError(400, 'Choose a delivery version in this project.');
   if (role !== 'raw' && RAW_EXTENSIONS.has(ext)) throw new IngestError(400, 'RAW files can only be the RAW variant');
   const maxBytes = sidecar === 'xmp' ? Math.min(env.maxUploadBytes, MAX_XMP_BYTES) : env.maxUploadBytes;
   if (input.declaredBytes && input.declaredBytes > maxBytes) throw new IngestError(413, sidecar === 'xmp' ? 'XMP sidecars must be 8 MB or smaller' : 'file too large');
@@ -147,7 +148,7 @@ export async function ingestUpload(input: UploadInput): Promise<IngestResult> {
       if (input.expectedPhotoId && photo?.id !== input.expectedPhotoId) throw new IngestError(409, 'This photo changed during the upload. Review the batch again.');
       if (input.expectedVersion !== undefined) {
         const current = photo && (sidecar ? candidates[0].sidecars.find(f => f.kind === sidecar) : candidates[0].files.find(f => f.role === role));
-        if ((current?.sha256 ?? null) !== input.expectedVersion && current?.sha256 !== sha256)
+        if ((current?.sha256 ?? null) !== input.expectedVersion && current?.sha256 !== sha256 && !(input.expectedVersion === null && current && 'origin' in current && current.origin === 'generated'))
           throw new IngestError(409, 'Another upload changed this version. Review the batch before replacing it.');
       }
       if (!photo) {
@@ -172,14 +173,16 @@ export async function ingestUpload(input: UploadInput): Promise<IngestResult> {
         return { status: unchanged ? 'unchanged' : existing ? 'replaced' : 'created', photoId: photo.id, fileId: saved.id, stem: photo.stem, role: sidecar, bytes, sha256 };
       }
       const existing = db.select().from(schema.photoFiles).where(and(eq(schema.photoFiles.photoId, photo.id), eq(schema.photoFiles.role, role))).get();
-      if (existing && existing.sha256 !== sha256 && input.replacement !== 'replace') {
+      if (existing && existing.sha256 !== sha256 && input.replacement !== 'replace' && !(input.expectedVersion === null && existing.origin === 'generated')) {
         throw new IngestError(409, `“${stem}” already has a ${role} file. Keep both photos, skip this file, or explicitly choose Replace.`);
       }
       const unchanged = existing?.sha256 === sha256;
-      const values = { originalFilename: filename, ext, mime: MIME[ext] ?? 'application/octet-stream', bytes, sha256, width: dims.width, height: dims.height, storagePath: newRel };
+      const previousRevision = existing ? archiveFileRevision(existing) : null;
+      const values = { origin: 'uploaded' as const, revisionId: unchanged && existing?.origin === 'uploaded' ? previousRevision : null, sourceFileId: null, sourceSha256: null, recipeHash: null, recipe: null, available: 1, needsReview: 0, originalFilename: filename, ext, mime: MIME[ext] ?? 'application/octet-stream', bytes, sha256, width: dims.width, height: dims.height, storagePath: newRel };
       const file = existing
         ? db.update(schema.photoFiles).set(values).where(eq(schema.photoFiles.id, existing.id)).returning().get()
         : db.insert(schema.photoFiles).values({ photoId: photo.id, role, ...values, createdAt: now }).returning().get();
+      deliverySourceChanged(photo.id, role, !unchanged && !!existing);
       const needsRender = !unchanged || photo.renditionStatus !== 'ready';
       if (needsRender) {
         db.update(schema.photos).set({ renditionStatus: 'pending', takenAt: photo.takenAt ?? dims.takenAt, updatedAt: now }).where(eq(schema.photos.id, photo.id)).run();
@@ -221,7 +224,11 @@ export async function deletePhotoFile(fileId: number): Promise<void> {
     if ((f.role === 'print' || variants.length === 1) && undeliveredReferences(f.photoId)) {
       throw new IngestError(409, 'This photo is needed for an unfinished order. Finish or cancel the order before removing its print master.');
     }
+    archiveFileRevision(f);
+    const eventId = (sqlite.prepare('SELECT g.event_id id FROM photos p JOIN galleries g ON g.id=p.gallery_id WHERE p.id=?').get(f.photoId) as {id:number}).id;
+    pauseDelivery(eventId, f.photoId, f.role);
     db.delete(schema.photoFiles).where(eq(schema.photoFiles.id, fileId)).run();
+    deliverySourceChanged(f.photoId, f.role, true);
     // Deletion workers recheck references; reuploading cannot delete the new version.
     enqueue('delete_files', { paths: [f.storagePath] });
     if (variants.length === 1 && !db.select({ id: schema.photoSidecars.id }).from(schema.photoSidecars).where(eq(schema.photoSidecars.photoId, f.photoId)).get()) db.delete(schema.photos).where(eq(schema.photos.id, f.photoId)).run();

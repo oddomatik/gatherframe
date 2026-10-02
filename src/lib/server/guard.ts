@@ -1,13 +1,13 @@
 import { error, type Cookies, type RequestEvent } from '@sveltejs/kit';
 import { eventAccessState, visitorSid, type AccessState } from './access';
-import { getEventBySlug } from './events';
+import { guestEventBySlug } from './sharing';
 import type { Event } from './db/schema';
 
 export interface EventContext { event: Event; state: AccessState; sid: string; isAdmin: boolean; secure: boolean; }
 
 /** Resolve the event for /g/[slug]/** routes. Throws 404 for unknown/unpublished slugs (no enumeration signal). */
 export function eventContext(e: Pick<RequestEvent, 'params' | 'cookies' | 'locals' | 'url'>): EventContext {
-  const event = e.params.slug ? getEventBySlug(e.params.slug) : undefined;
+  const event = e.params.slug ? guestEventBySlug(e.params.slug) : undefined;
   if (!event) throw error(404, 'Not found');
   const secure = e.url.protocol === 'https:';
   const sid = visitorSid(e.cookies, secure);

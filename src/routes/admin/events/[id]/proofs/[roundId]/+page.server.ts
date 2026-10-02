@@ -1,0 +1,7 @@
+import { error, fail } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
+import { getEvent, listEventPhotos } from '$server/events';
+import { getProofRound, proofHistory, reviewProofRound } from '$server/proofing';
+function context(e:Pick<Parameters<PageServerLoad>[0], 'params'|'locals'>) {if(!e.locals.admin)throw error(401,'Please sign in');const event=getEvent(Number(e.params.id)),round=getProofRound(Number(e.params.roundId));if(!event||!round||round.event_id!==event.id)throw error(404,'Not found');return {event,round};}
+export const load:PageServerLoad=e=>{const {event,round}=context(e),photos=listEventPhotos(event.id);const selected=JSON.parse(round.selection) as number[];return {event:{id:event.id,name:event.name},round:{...round,selected,photoNotes:JSON.parse(round.notes) as Record<string,string>},photos:photos.filter(p=>selected.includes(p.id)).map(p=>({id:p.id,label:p.displayName,hash:p.renditionHash})),history:proofHistory(round.id).map(h=>({...h,selected:JSON.parse(h.selection) as number[],photoNotes:JSON.parse(h.notes) as Record<string,string>}))};};
+export const actions:Actions={default:async e=>{const {event,round}=context(e),f=await e.request.formData(),status=f.get('status');if(status!=='open'&&status!=='accepted'&&status!=='closed')return fail(400,{error:'Choose a review action'});try{reviewProofRound(event.id,round.id,Number(f.get('version')),status,String(f.get('reviewNote')??''));return {ok:'Selection review saved.'};}catch(err){return fail(409,{error:(err as Error).message});}}};

@@ -182,5 +182,72 @@ CREATE INDEX guest_activity_event_time ON guest_activity(event_id,created_at);
 CREATE INDEX guest_activity_time ON guest_activity(created_at);
 CREATE TABLE activity_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 INSERT INTO activity_meta VALUES ('started_at',strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+` },
+  { id: '0015_delivery_versions', sql: `
+ALTER TABLE events ADD COLUMN display_source_role TEXT;
+ALTER TABLE guest_activity ADD COLUMN other_files INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE delivery_versions (
+ event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE, key TEXT NOT NULL,
+ label TEXT NOT NULL, mode TEXT NOT NULL DEFAULT 'uploaded' CHECK(mode IN ('uploaded','automatic')),
+ source_role TEXT, recipe TEXT, filename_mode TEXT NOT NULL DEFAULT 'private' CHECK(filename_mode IN ('private','original')),
+ folder TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX delivery_versions_event_key_uq ON delivery_versions(event_id,key);
+INSERT INTO delivery_versions(event_id,key,label,sort_order,updated_at)
+ SELECT id,'print','Full resolution',0,updated_at FROM events
+ UNION ALL SELECT id,'social','Web size',1,updated_at FROM events
+ UNION ALL SELECT id,'raw','Camera RAW',2,updated_at FROM events;
+ALTER TABLE photo_files ADD COLUMN origin TEXT NOT NULL DEFAULT 'uploaded' CHECK(origin IN ('uploaded','generated'));
+ALTER TABLE photo_files ADD COLUMN revision_id TEXT;
+ALTER TABLE photo_files ADD COLUMN source_file_id INTEGER;
+ALTER TABLE photo_files ADD COLUMN source_sha256 TEXT;
+ALTER TABLE photo_files ADD COLUMN recipe_hash TEXT;
+ALTER TABLE photo_files ADD COLUMN recipe TEXT;
+ALTER TABLE photo_files ADD COLUMN available INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE photo_files ADD COLUMN needs_review INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE photo_file_revisions (
+ id TEXT PRIMARY KEY, photo_id INTEGER NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+ role TEXT NOT NULL, storage_path TEXT NOT NULL, sha256 TEXT NOT NULL, snapshot TEXT NOT NULL, created_at TEXT NOT NULL
+);
+UPDATE photo_files SET revision_id='legacy-'||id;
+INSERT INTO photo_file_revisions(id,photo_id,role,storage_path,sha256,snapshot,created_at)
+ SELECT revision_id,photo_id,role,storage_path,sha256,
+ json_object('originalFilename',original_filename,'ext',ext,'mime',mime,'bytes',bytes,'width',width,'height',height,'origin','uploaded'),created_at FROM photo_files;
+CREATE TABLE delivery_states (
+ photo_id INTEGER NOT NULL REFERENCES photos(id) ON DELETE CASCADE, role TEXT NOT NULL,
+ generation INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL CHECK(status IN ('queued','processing','ready','failed','waiting','paused','uploaded')),
+ source_file_id INTEGER, source_sha256 TEXT, replace_upload_sha256 TEXT, recipe TEXT, recipe_hash TEXT, last_error TEXT, updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX delivery_states_photo_role_uq ON delivery_states(photo_id,role);
+INSERT INTO delivery_states(photo_id,role,status,updated_at) SELECT photo_id,role,'uploaded',created_at FROM photo_files;
+` },
+  { id: '0016_gallery_presentation', sql: `
+ALTER TABLE events ADD COLUMN gallery_layout TEXT NOT NULL DEFAULT 'directory' CHECK(gallery_layout IN ('directory','simple','sections'));
+ALTER TABLE galleries ADD COLUMN public_title TEXT;
+ALTER TABLE galleries ADD COLUMN public_description TEXT;
+ALTER TABLE gallery_photos ADD COLUMN position INTEGER CHECK(position IS NULL OR position >= 0);
+` },
+  { id: '0017_scoped_sharing_and_proofs', sql: `
+ALTER TABLE events ADD COLUMN scoped_sharing_only INTEGER NOT NULL DEFAULT 0 CHECK(scoped_sharing_only IN (0,1));
+CREATE TABLE guest_grants (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+ token_hash TEXT NOT NULL UNIQUE, label TEXT NOT NULL, collection_ids TEXT NOT NULL,
+ downloads INTEGER NOT NULL DEFAULT 0 CHECK(downloads IN (0,1)), version INTEGER NOT NULL DEFAULT 1,
+ expires_at TEXT, revoked_at TEXT, created_at TEXT NOT NULL
+);
+CREATE INDEX guest_grants_event_idx ON guest_grants(event_id);
+CREATE TABLE proof_rounds (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+ grant_id INTEGER NOT NULL REFERENCES guest_grants(id) ON DELETE CASCADE,
+ title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','submitted','accepted','closed')),
+ version INTEGER NOT NULL DEFAULT 0, selection TEXT NOT NULL DEFAULT '[]', notes TEXT NOT NULL DEFAULT '{}',
+ message TEXT NOT NULL DEFAULT '', review_note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE INDEX proof_rounds_grant_idx ON proof_rounds(grant_id);
+CREATE TABLE proof_submissions (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, round_id INTEGER NOT NULL REFERENCES proof_rounds(id) ON DELETE CASCADE,
+ revision INTEGER NOT NULL, selection TEXT NOT NULL, notes TEXT NOT NULL, message TEXT NOT NULL,
+ submitted_at TEXT NOT NULL, UNIQUE(round_id,revision)
+);
 ` }
 ];

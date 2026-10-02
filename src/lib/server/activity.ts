@@ -7,7 +7,7 @@ import type { Readable } from 'node:stream';
 export const clientKinds = ['album_view','collection_view','browse_view','photo_view','family_add','family_remove','favorite_add','favorite_remove'] as const;
 export type ClientKind = typeof clientKinds[number];
 type Activity = { kind: ClientKind | 'download_start' | 'download_complete'; galleryId?: number | null; photoId?: number | null;
- channel?: string; social?: number; print?: number; raw?: number; bytes?: number };
+ channel?: string; social?: number; print?: number; raw?: number; other?: number; bytes?: number };
 export function guestTraffic(e: Pick<RequestEvent,'locals'|'request'>) {
  return !e.locals?.demo && !e.locals?.admin && !/bot|crawler|spider|preview|facebookexternalhit|whatsapp|headless/i.test(e.request.headers.get('user-agent') ?? '');
 }
@@ -20,8 +20,8 @@ export function recordActivity(eventId:number,sid:string,id:string,a:Activity,no
  try {
   if(now.getTime()>sweepAt){sqlite.prepare('DELETE FROM guest_activity WHERE created_at < ?').run(new Date(now.getTime()-90*86400000).toISOString());sweepAt=now.getTime()+3600000;}
   sqlite.prepare(`INSERT OR IGNORE INTO guest_activity
-   (id,event_id,visitor,kind,gallery_id,photo_id,channel,social_files,print_files,raw_files,bytes,created_at)
-   VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).run(createHmac('sha256',env.secret).update(`${eventId}:${sid}:${id}`).digest('hex'),eventId,visitorKey(eventId,sid),a.kind,a.galleryId??null,a.photoId??null,a.channel??null,a.social??0,a.print??0,a.raw??0,a.bytes??0,now.toISOString());
+   (id,event_id,visitor,kind,gallery_id,photo_id,channel,social_files,print_files,raw_files,other_files,bytes,created_at)
+   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(createHmac('sha256',env.secret).update(`${eventId}:${sid}:${id}`).digest('hex'),eventId,visitorKey(eventId,sid),a.kind,a.galleryId??null,a.photoId??null,a.channel??null,a.social??0,a.print??0,a.raw??0,a.other??0,a.bytes??0,now.toISOString());
  }catch{/* A metrics failure does not break the gallery. */}
 }
 /** Count only full response EOF as sent. A partial/range response or aborted stream is not a complete file. */
@@ -52,8 +52,8 @@ export function activityReport(from:string,to:string,eventId:number|null) {
  const daily=sqlite.prepare(`SELECT substr(created_at,1,10) day,
  sum(kind IN ('album_view','collection_view','browse_view')) views,sum(kind='favorite_add') favorites,
  sum(kind='download_complete') downloads FROM guest_activity a WHERE ${where} GROUP BY day ORDER BY day`).all(...params) as {day:string;views:number;favorites:number;downloads:number}[];
- const downloads=sqlite.prepare(`SELECT channel,count(*) transfers,sum(social_files) social,sum(print_files) print,sum(raw_files) raw,sum(bytes) bytes
- FROM guest_activity a WHERE ${where} AND kind='download_complete' GROUP BY channel`).all(...params) as {channel:string;transfers:number;social:number;print:number;raw:number;bytes:number}[];
+ const downloads=sqlite.prepare(`SELECT channel,count(*) transfers,sum(social_files) social,sum(print_files) print,sum(raw_files) raw,sum(other_files) other,sum(bytes) bytes
+ FROM guest_activity a WHERE ${where} AND kind='download_complete' GROUP BY channel`).all(...params) as {channel:string;transfers:number;social:number;print:number;raw:number;other:number;bytes:number}[];
  const collections=sqlite.prepare(`SELECT g.id,g.name,e.id eventId,e.name project,
  sum(a.kind='collection_view') views,sum(a.kind='family_add') adds,sum(a.kind='family_remove') removes
  FROM guest_activity a JOIN galleries g ON g.id=a.gallery_id JOIN events e ON e.id=a.event_id

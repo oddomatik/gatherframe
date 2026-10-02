@@ -49,14 +49,11 @@
   const activeRequests = new Set<AbortController>();
   const previewUrls = new Set<string>();
   let remembered: Record<string, Remembered> = {};
-  const imageRoles: VariantRole[] = ['print', 'social', 'raw'];
-  const roles: UploadRole[] = [...imageRoles, 'xmp', 'acr'];
-  const roleLabels: Record<UploadRole, string> = { print: 'Full resolution', social: 'Social copy', raw: 'Camera RAW', xmp: 'XMP', acr: 'ACR' };
-  const zones: { role: VariantRole; label: string; help: string }[] = [
-    { role: 'print', label: 'Full resolution', help: 'Your finished Lightroom JPEGs' },
-    { role: 'social', label: 'Social copies', help: 'Optional smaller downloads' },
-    { role: 'raw', label: 'Camera RAW + edit files', help: 'Optional originals, XMP and ACR sidecars' }
-  ];
+  const imageRoles = $derived(data.versions.map(v => v.key as VariantRole));
+  const roles = $derived<UploadRole[]>([...imageRoles, 'xmp', 'acr']);
+  const roleLabels = $derived<Record<string, string>>({ ...Object.fromEntries(data.versions.map(v => [v.key,v.label])), xmp:'XMP', acr:'ACR' });
+  const folderMappings = $derived<Record<string, VariantRole>>(Object.fromEntries(data.versions.filter(v => v.folder).map(v => [v.folder.toLowerCase(),v.key as VariantRole])));
+  const zones = $derived(data.versions.map(v => ({ role:v.key as VariantRole, label:v.label, help:v.key === 'raw' ? 'Optional originals, XMP and ACR sidecars' : v.mode === 'automatic' ? 'Optional custom export overrides the automatic copy' : 'Your finished exports, unchanged' })));
   const manifestKey = $derived(`picture-day-import-${data.admin?.id ?? "signed-out"}-${data.event.id}`);
   const total = $derived(rows.reduce((n, r) => n + Object.keys(r.files).length, 0));
   const done = $derived(rows.reduce((n, r) => n + Object.values(r.files).filter((f) => f && ['done', 'unchanged'].includes(f.status)).length, 0));
@@ -97,7 +94,7 @@
   function hasImage(row: Row) { return imageRoles.some((role) => row.files[role] || hasExisting(row, role)); }
   function hasSidecars(row: Row) { return !!row.files.xmp || !!row.files.acr || hasExisting(row, 'xmp') || hasExisting(row, 'acr'); }
   function displayName(row: Row) { return Object.values(row.files)[0]?.file.name.replace(/\.[^.]+$/, '') ?? row.stem; }
-  function preview(row: Row) { return row.files.social?.preview ?? row.files.print?.preview; }
+  function preview(row: Row) { return row.files.social?.preview ?? row.files.print?.preview ?? Object.values(row.files).find(f => f?.preview)?.preview; }
   function saveManifest() {
     try {
       for (const row of rows) for (const entry of Object.values(row.files)) if (entry && row.stemOverride) remembered[fingerprint(entry.file)] = { stemOverride: row.stemOverride };
@@ -166,7 +163,7 @@
         if (isAcceptedUpload(file.name)) return true;
         skipped++; return false;
       });
-      const planned = planImportFiles(accepted, zoneRole, unsuffixedRole);
+      const planned = planImportFiles(accepted, zoneRole, unsuffixedRole, folderMappings);
       // Choose the initial layout once, before this batch starts appearing.
       // Progress, inventory refreshes and later file additions must not undo
       // the user's own disclosure choice.
@@ -261,7 +258,7 @@
       await loadExisting();
       if (ambiguous.length) { toast('More than one saved photo matches a filename. Skip that row or keep it as a separate photo.', 'error'); return; }
       const queue: [Row, UploadRole][] = [];
-      for (const role of ['print','social','xmp','acr','raw'] as UploadRole[]) for (const row of orderedRows) if (row.files[role] && !['done', 'unchanged'].includes(row.files[role]!.status)) queue.push([row, role]);
+      for (const role of [...imageRoles.filter(r => r !== 'raw'), 'xmp','acr','raw'] as UploadRole[]) for (const row of orderedRows) if (row.files[role] && !['done', 'unchanged'].includes(row.files[role]!.status)) queue.push([row, role]);
       if (queue.length) { tagsLocked = true; saveManifest(); }
       await Promise.all(Array.from({ length: 3 }, async () => { while (queue.length && !pauseRequested) { const [row, role] = queue.shift()!; await put(row, role); } }));
       // Refresh from the server rather than leaving version badges based on pre-upload state.
@@ -278,7 +275,7 @@
 <svelte:window onbeforeunload={(event) => { if (running || adding || total > done || conflicts.length) { event.preventDefault(); event.returnValue = ''; } }} />
 <svelte:head><title>Bring in photos · {data.event.name}</title></svelte:head>
 <a href={`/admin/events/${data.event.id}`} class="text-sm text-stone-500 hover:underline">← Back to {data.event.name}</a>
-<header class="import-heading"><p class="eyebrow">{data.event.name}</p><h1 class="display-title mt-2 text-4xl sm:text-5xl">Upload photos</h1></header>
+<header class="import-heading"><p class="eyebrow">{data.event.name}</p><h1 class="display-title mt-2 text-4xl sm:text-5xl">Upload photos</h1><a class="mt-3 inline-block text-sm underline" href={`/admin/events/${data.event.id}/versions`}>Delivery versions & automatic copies</a></header>
 
 {#if previousImport}<p class="mt-4 rounded-xl bg-sky-50 p-3 text-sm text-sky-900">{previousImport}</p>{/if}
 <div class="mt-5 flex flex-wrap items-end gap-4 rounded-2xl border border-stone-200 bg-white p-4">
@@ -290,7 +287,7 @@
   <h2 class="text-lg font-semibold">Add your export folder</h2>
   <p class="mt-2 text-sm text-stone-600"><strong>full/</strong> · <strong>social/</strong> · <strong>raw/</strong><span class="ml-3">Matched by filename.</span></p>
   <label class="mt-4 inline-block cursor-pointer rounded-xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white">Choose folder<input aria-label="Choose export root folder" type="file" multiple webkitdirectory disabled={data.demo || running || adding} class="sr-only" onchange={(event) => onInput(event, null)} /></label>
-  <details class="mt-3 text-xs text-stone-600"><summary class="cursor-pointer">Other folder names</summary><label class="mt-2 block">Unrecognized image folders contain <select bind:value={unsuffixedRole} disabled={data.demo || running || adding} class="rounded border border-stone-300 bg-white px-2 py-1"><option value="print">full resolution</option><option value="social">social copies</option></select></label><p class="mt-1">Applies to the next selection. Recognized full/, social/, and raw/ folders always use their named version.</p></details>
+  <details class="mt-3 text-xs text-stone-600"><summary class="cursor-pointer">Other folder names</summary><label class="mt-2 block">Unrecognized image folders contain <select bind:value={unsuffixedRole} disabled={data.demo || running || adding} class="rounded border border-stone-300 bg-white px-2 py-1">{#each data.versions.filter(v => v.key !== 'raw') as v (v.key)}<option value={v.key}>{v.label}</option>{/each}</select></label><p class="mt-1">Applies to the next selection. Mapped folders take priority. Configure folder mappings in Delivery versions.</p></details>
 </section>
 <details class="mt-4"><summary class="cursor-pointer text-sm font-semibold">Add separate folders or files</summary>
 <div class="mt-3 grid gap-3 sm:grid-cols-3">
@@ -370,7 +367,7 @@
             {#if entry.status === 'uploading'}<progress value={entry.progress} max="1" class="mt-2 w-full" aria-label={`Uploading ${entry.file.name}`}></progress><span class="text-xs">{entry.stage ?? 'Uploading'}</span>
             {:else if entry.status === 'error'}<p class="mt-2 break-words">{entry.error}</p>
             {:else if entry.status === 'done' || entry.status === 'unchanged'}<p class="mt-2">✓ {entry.status === 'unchanged' ? 'Unchanged · already uploaded' : 'Transferred'}</p>
-            {:else}<div class="mt-2 flex items-center gap-2">{#if isSidecar(role)}<span class="text-[10px] text-violet-800">{roleLabels[role]} sidecar</span>{:else}<select aria-label={`Version of ${entry.file.name}`} value={role} onchange={(event) => setRole(row, role, event.currentTarget.value as VariantRole)} disabled={data.demo || running || adding} class="max-w-28 rounded border border-stone-300 text-[10px]"><option value="print">Full resolution</option><option value="social">Social</option><option value="raw">RAW</option></select>{/if}<button type="button" disabled={data.demo || running || adding} class="ml-auto underline" onclick={() => remove(row, role)}>Remove</button></div>{/if}
+            {:else}<div class="mt-2 flex items-center gap-2">{#if isSidecar(role)}<span class="text-[10px] text-violet-800">{roleLabels[role]} sidecar</span>{:else}<select aria-label={`Version of ${entry.file.name}`} value={role} onchange={(event) => setRole(row, role, event.currentTarget.value as VariantRole)} disabled={data.demo || running || adding} class="max-w-28 rounded border border-stone-300 text-[10px]">{#each data.versions as v (v.key)}<option value={v.key}>{v.label}</option>{/each}</select>{/if}<button type="button" disabled={data.demo || running || adding} class="ml-auto underline" onclick={() => remove(row, role)}>Remove</button></div>{/if}
           </div>{:else if hasExisting(row, role)}<span class={`text-xs ${isSidecar(role) ? 'text-violet-700' : 'text-sky-700'}`}>✓ {isSidecar(role) ? 'Saved privately' : 'Already uploaded'}</span>{:else}<span class="text-xs text-stone-400">{!inventoryReady ? 'Not checked' : role === 'print' ? 'Not yet uploaded' : 'Optional · not uploaded'}</span>{/if}</td>{/each}
         </tr>
       {/each}

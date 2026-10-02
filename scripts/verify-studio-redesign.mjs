@@ -45,21 +45,21 @@ try {
   db.prepare('UPDATE events SET is_published=1 WHERE id=?').run(id);
   const group=Number(db.prepare('INSERT INTO galleries(event_id,public_id,name,created_at) VALUES(?,?,?,?)').run(id,'group-fixture','Group',stamp).lastInsertRowid);
   const photo=Number(db.prepare("INSERT INTO photos(gallery_id,stem,display_name,rendition_status,created_at,updated_at) VALUES(?,?,?,'ready',?,?)").run(group,'group1','Group_1.jpg',stamp,stamp).lastInsertRowid);
-  db.prepare('INSERT INTO gallery_photos VALUES(?,?)').run(group,photo);
+  db.prepare('INSERT INTO gallery_photos(gallery_id,photo_id) VALUES(?,?)').run(group,photo);
   const dir=path.join(dataDir,`derivatives/${id}/${photo}`);await mkdir(dir,{recursive:true});
   const visual=process.env.REDESIGN_VISUAL_FIXTURE;
   const source=visual ? await sharp(await readFile(path.join(visual,'collection-0.webp'))).webp().toBuffer() : await sharp({create:{width:900,height:600,channels:3,background:'#cc3344'}}).webp().toBuffer();
   for(const kind of ['thumb','preview','web'])await writeFile(path.join(dir,`${kind}.webp`),source);
   for(let n=2;n<=12;n++){
     const pid=Number(db.prepare("INSERT INTO photos(gallery_id,stem,display_name,rendition_status,created_at,updated_at) VALUES(?,?,?,'ready',?,?)").run(group,'img'+n,`IMG_${n}.jpg`,stamp,stamp).lastInsertRowid);
-    db.prepare('INSERT INTO gallery_photos VALUES(?,?)').run(group,pid);
+    db.prepare('INSERT INTO gallery_photos(gallery_id,photo_id) VALUES(?,?)').run(group,pid);
     const pd=path.join(dataDir,`derivatives/${id}/${pid}`);await mkdir(pd,{recursive:true});
     for(const kind of ['thumb','preview','web'])await writeFile(path.join(pd,`${kind}.webp`),source);
   }
   for(let n=1;n<=5;n++){
     const gid=Number(db.prepare('INSERT INTO galleries(event_id,public_id,name,created_at) VALUES(?,?,?,?)').run(id,'kid-'+n,'Kid '+(n===5?10:n),stamp).lastInsertRowid);
     const pid=n+1;
-    db.prepare('INSERT INTO gallery_photos VALUES(?,?)').run(gid,pid);
+    db.prepare('INSERT INTO gallery_photos(gallery_id,photo_id) VALUES(?,?)').run(gid,pid);
     if(visual){const bytes=await readFile(path.join(visual,`collection-${n}.webp`));for(const kind of ['thumb','preview','web'])await writeFile(path.join(dataDir,`derivatives/${id}/${pid}/${kind}.webp`),bytes);}
   }
   db.prepare('UPDATE events SET share_photo_id=? WHERE id=?').run(photo,id);

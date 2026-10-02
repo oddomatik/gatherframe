@@ -94,7 +94,7 @@ async function assertVisible(ids) { await expect.poll(() => visibleIds(page)).to
  const second=await request('/admin?/create',form({name:'Another project'}));const otherId=Number(second.headers.get('location').split('/').at(-1));
  const tagline='Autumn portraits <b>2026</b>';
  await page.getByRole('tab',{name:'Settings',exact:true}).click();const settings=page.locator('#project-settings');
- await settings.locator('input[name=tagline]').fill(tagline);await settings.getByRole('button',{name:'Save event settings',exact:true}).click();
+ await settings.locator('input[name=tagline]').fill(tagline);await settings.getByRole('button',{name:'Save project settings',exact:true}).click();
  await expect.poll(()=>db.prepare('SELECT tagline FROM events WHERE id=?').get(eventId).tagline).toBe(tagline);
  await page.reload({waitUntil:'networkidle'});await expect(page.locator('#project-settings input[name=tagline]')).toHaveValue(tagline);
  const parent=await browser.newPage();await parent.goto(base+'/g/'+ev.slug,{waitUntil:'networkidle'});await expect(parent.locator('header').getByText(tagline,{exact:true})).toBeVisible();assert.equal(await parent.locator('header b').count(),0);
@@ -105,7 +105,7 @@ async function assertVisible(ids) { await expect.poll(() => visibleIds(page)).to
  assert.equal((await request(eventPath+'?/update',form(settingsForm))).status,200);
  assert.equal(db.prepare('SELECT tagline FROM events WHERE id=?').get(eventId).tagline,tagline);
  const anonymous=await request(eventPath+'?/update',form({...settingsForm,tagline:'Unauthorized'}),false);assert.ok([303,401,403].includes(anonymous.status));assert.equal(db.prepare('SELECT tagline FROM events WHERE id=?').get(eventId).tagline,tagline);
- await page.getByRole('tab',{name:'Settings',exact:true}).click();await settings.locator('input[name=tagline]').fill('');await settings.getByRole('button',{name:'Save event settings',exact:true}).click();await expect.poll(()=>db.prepare('SELECT tagline FROM events WHERE id=?').get(eventId).tagline).toBe(null);
+ await page.getByRole('tab',{name:'Settings',exact:true}).click();await settings.locator('input[name=tagline]').fill('');await settings.getByRole('button',{name:'Save project settings',exact:true}).click();await expect.poll(()=>db.prepare('SELECT tagline FROM events WHERE id=?').get(eventId).tagline).toBe(null);
  await parent.reload({waitUntil:'networkidle'});await expect(parent.getByText(tagline,{exact:true})).toHaveCount(0);await parent.close();
  assert.equal(fingerprints(),preserved);ok('Project tagline persists, is escaped and project-scoped, clears cleanly, survives stale forms, requires owner access, and leaves photos/memberships intact');
 
