@@ -1,0 +1,70 @@
+{
+  "sourceRevision": "565d97beed736444f7fa9c72acf5585096a43736",
+  "capture": "Real Chromium UI; disposable local database; original AI-generated sample photographs; fictional customer records; mobile viewport emulation.",
+  "assets": [
+    {
+      "file": "docs/screenshots/gallery-desktop.webp",
+      "alt": "A simple guest gallery presenting six nature photographs with collection and tag filters.",
+      "width": 1440,
+      "height": 2090,
+      "bytes": 200870,
+      "sha256": "70d453ec7e9902d2aa707d27dd8d3e28e647d51b930aa667e6c43026490fa345"
+    },
+    {
+      "file": "docs/screenshots/gallery-mobile.webp",
+      "alt": "A full-screen photograph on a phone with navigation, favorite and download controls.",
+      "width": 390,
+      "height": 844,
+      "bytes": 52710,
+      "sha256": "950267e3394cc47c5426363d25ce580c5c4bc926aa4b9e23483518e6bcbaa729"
+    },
+    {
+      "file": "docs/screenshots/studio-organize.webp",
+      "alt": "The photographer workspace with shared photo library, collections, tags and bulk actions.",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 95714,
+      "sha256": "6f03bb0cf5dcb0c493e9d612be8333609255d7c00748ca022cfd683e43c78633"
+    },
+    {
+      "file": "docs/screenshots/gallery-story.webp",
+      "alt": "The same project presented with a cover photograph and named chapter navigation.",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 91648,
+      "sha256": "660faa41b7e18297939acdc2916648db22003b982a7a5b681442b111705497e5"
+    },
+    {
+      "file": "docs/screenshots/proof-selection.webp",
+      "alt": "A recipient saves two selected photographs, an image note and a message before submission.",
+      "width": 1440,
+      "height": 1436,
+      "bytes": 131604,
+      "sha256": "89c94fcce27a52b5a982549c7c18e8b1575af66deac0de0e3683e8d18bb8373a"
+    },
+    {
+      "file": "docs/screenshots/proof-review.webp",
+      "alt": "The photographer reviews a submitted selection and notes, with accept and reopen controls.",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 57918,
+      "sha256": "e8edf3ab74303f7893a595c401148e13b6ccbfc5e72895e55d7d1b2f6d8a91b7"
+    },
+    {
+      "file": "docs/screenshots/print-orders.webp",
+      "alt": "The print-order inbox tracks fictional orders, manually recorded payments and production status.",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 42734,
+      "sha256": "cb25b9eac5f879b620891e7e206913d3d9b8dede56ca52e1346d8d65cbf31cb8"
+    },
+    {
+      "file": "docs/screenshots/first-delivery.webp",
+      "alt": "A new private project shows the four-step first-delivery guide before any photographs are imported.",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 59496,
+      "sha256": "99be12309b2bb2490f359bfea835fd694f0afe259a4d24370a5a79ad8ff9a98d"
+    }
+  ]
+}
