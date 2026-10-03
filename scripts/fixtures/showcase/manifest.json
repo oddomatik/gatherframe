@@ -1,0 +1,35 @@
+{
+  "provenance": "Original AI-generated nature photographs created for the Gatherframe demo on 2026-09-28. No customer photographs or records. Optimized copies for reproducible documentation captures.",
+  "assets": [
+    {
+      "file": "scripts/fixtures/showcase/coast-wide.webp",
+      "bytes": 217164,
+      "sha256": "a124aba7e75fb78a74fa9a645246c75fd1e8fb9b57795b5a4cba4755befd3535"
+    },
+    {
+      "file": "scripts/fixtures/showcase/coast-detail.webp",
+      "bytes": 202254,
+      "sha256": "67bbb3cb12f60052b1475133d41285577f405b78110cb71ac4a5971fba71e02e"
+    },
+    {
+      "file": "scripts/fixtures/showcase/forest-wide.webp",
+      "bytes": 379208,
+      "sha256": "782a3b8e72e54b2eecbcb80f21f7265714fa3ae98cd67cc9fe839c915d4b8e0d"
+    },
+    {
+      "file": "scripts/fixtures/showcase/forest-detail.webp",
+      "bytes": 152826,
+      "sha256": "fac69af9371ca8c1631f43de31478e6e61edf6611b3f35e458fad026bee42f69"
+    },
+    {
+      "file": "scripts/fixtures/showcase/meadow-wide.webp",
+      "bytes": 202428,
+      "sha256": "6d1ecf686bf0caaeed10523d81022558f06085c2d3ead27fbb2d93c83c7c599b"
+    },
+    {
+      "file": "scripts/fixtures/showcase/meadow-detail.webp",
+      "bytes": 94956,
+      "sha256": "2211c1d9bbf0d14c034b9963c81609a699d39127d3a46c8b8d1f9d99c8ea9f88"
+    }
+  ]
+}

@@ -1,25 +1,48 @@
 # Gatherframe
 
-Self-hosted photo galleries for events, sessions, portfolios and studios.
-Organize one photograph into several collections, share private albums,
-deliver finished files, and take print orders without giving up your editing workflow.
+### Your photos. Your workflow. Your server.
+
+Self-hosted photo galleries for photographers and small studios. Organize a shoot,
+share a considered gallery, collect client selections, and deliver finished files.
+Keep editing in Lightroom or your preferred editor; Gatherframe handles the handoff.
+
+[Take the visual tour](docs/product-tour.md) · [Try the read-only demo](https://gatherframe.coldstartlab.com/g/field-notes) · [Self-host it](#quick-start-docker-compose) · [Your first delivery](docs/first-delivery.md)
+
+![Gatherframe guest gallery: Field notes, a coastal cover photograph, and Coast, Woodland and Meadow chapter navigation.](docs/screenshots/gallery-story.webp)
+
+*Real application screens with original AI-generated sample photography and fictional records.
+[Capture details](docs/screenshots/README.md). Screenshots follow this source revision; the hosted demo may run an earlier release.*
+
+## From shoot to delivery
+
+| For the photographer | For the client |
+| --- | --- |
+| Import finished exports and keep matching file versions together. | Browse a simple gallery, a chaptered story, or a collection directory. |
+| Organize one photograph into several collections without duplicating the original. | Explore by collection or tags, then view photos full-screen on a phone. |
+| Share selected collections through expiring, revocable invitations. | Save a proof-selection draft, add notes, and submit choices to the photographer. |
+| Review selections, reopen a round for changes, or accept it. | Download the file versions the photographer has enabled. |
+| Optionally track print orders, manual payments and production. | Order available prints when sales are enabled for the project. |
+
+| Organize your shoot | Review client selections |
+| --- | --- |
+| ![Photographer workspace with a photo grid, collection sidebar and tags.](docs/screenshots/studio-organize.webp) | ![Submitted proof round showing two selected photos, a client note, and accept or reopen controls.](docs/screenshots/proof-review.webp) |
+
+[See all eight screens and the end-to-end workflow →](docs/product-tour.md)
+
+## What it includes
+
+- [Gallery presentation](docs/gallery-presentation.md): three layouts, public titles separate from private labels, and independent photo/collection ordering.
+- [Scoped invitations and proofing](docs/scoped-sharing-and-proofing.md): collection-limited access, expiry, revocation, download controls, saved selections and submission history.
+- [Named delivery versions](docs/delivery-versions.md): retain your exports or generate optional smaller JPEGs, with custom upload overrides.
+- [Resumable uploads and recoverable sorting](docs/upload-and-sorting-recovery.md), Lightroom-friendly JPEG/social/RAW imports and private XMP/ACR companions.
+- Browser-local favorites, individual/ZIP downloads, and phone sharing preparation.
+- Optional [print preparation](docs/print-fulfillment.md), receipts, manual payment records and exact-master approval.
+- First-party [visibility metrics](docs/visibility.md), local storage or optional private [Backblaze B2](docs/b2-storage.md).
+- A first-delivery guide and a [read-only installation doctor](docs/self-hosting.md#read-only-installation-check).
 
 **Early release:** a working single-studio application, not a multi-tenant SaaS platform.
-Run one application process per database. Managed hosting is a planned service, not yet available.
-
-## What it does
-
-- Photo-first galleries, collection covers, project-defined tags and shareable branches.
-- [Adaptable gallery presentation](docs/gallery-presentation.md): direct photo grids, named story sections or collection directories, with optional public titles and independent collection sequences.
-- Lightroom-friendly full-resolution, social and RAW imports; private XMP/ACR companions.
-- [Named delivery versions](docs/delivery-versions.md): preserve your exports or generate optional smaller JPEGs, with custom upload overrides.
-- Resumable uploads, recoverable sorting, independent photo identity and shared collection membership.
-- Browser-local favorites and saved collections, individual/ZIP downloads and phone sharing preparation.
-- Configurable print products, order receipts, manual payment records and production/master approval.
-- First-party visibility dashboard for views, favorites, collection saves and download types.
-- Local media storage or optional private Backblaze B2; no external analytics service required.
-
-There is no automatic card processing, print-lab fulfillment, face recognition, multi-tenant account isolation,
+Run one application process per database. Managed hosting is not yet available.
+There is no automatic card processing, print-lab fulfillment, face recognition,
 automatic media migration, or complete hosted backup service. See the [roadmap](docs/roadmap.md).
 
 ## Quick start: Docker Compose
@@ -55,7 +78,12 @@ Project language is neutral by default; [customize the optional order-reference 
 
 ## Demo studio
 
-An optional [read-only demo mode](docs/demo.md) provides a sample gallery and public studio tour in a separately seeded instance. No private photos, contact details or real orders are needed.
+Explore the [sample guest gallery](https://gatherframe.coldstartlab.com/g/field-notes)
+or the [read-only studio workspace](https://gatherframe.coldstartlab.com/admin).
+The demo uses AI-generated nature photos and fictional orders; edits, uploads and checkout are disabled.
+You do not need an account to look around. The demo is not an upload service.
+
+To run your own separate demonstration instance, see [demo mode](docs/demo.md).
 
 ## Self-hosting and operations
 
@@ -100,13 +128,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for architecture, testing and review expe
 [AGPL-3.0-only](LICENSE), Copyright 2026 Gatherframe contributors. Commercial hosting is permitted;
 modified network versions must meet the license’s source-availability requirements.
 Every standard build exposes its corresponding source and license at `/about`.
-Photos and customer records are **not** licensed under AGPL or included in that source download.
+Your photos and customer records are **not** licensed under AGPL or included in that source download.
+The deliberately bundled synthetic documentation samples are identified in the [asset notes](docs/screenshots/README.md).
 Dependencies retain their own licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).
 
 For security reports, follow [SECURITY.md](SECURITY.md), not a public issue containing private records.
-
-Scoped guest invitations and saved/submitted proof rounds are described in [the sharing and proofing guide](docs/scoped-sharing-and-proofing.md).
-
-New to the workflow? Follow [Your first delivery](docs/first-delivery.md).
-
-For installation troubleshooting, run the [read-only self-hosting doctor](docs/self-hosting.md#read-only-installation-check).

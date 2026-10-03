@@ -20,7 +20,8 @@
     "check:repo": "node scripts/check-repo.mjs",
     "env:init": "node scripts/init-env.mjs",
     "prebuild": "node scripts/package-source.mjs",
-    "doctor": "node scripts/doctor.mjs"
+    "doctor": "node scripts/doctor.mjs",
+    "docs:screenshots": "node scripts/capture-showcase.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1140.0",

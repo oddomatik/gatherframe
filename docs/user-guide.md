@@ -1,5 +1,7 @@
 # Studio workflow
 
+New here? [See the app in pictures](product-tour.md), then follow [Your first delivery](first-delivery.md).
+
 1. Create a project, configure access, sharing preview, downloads and print products.
 2. Export finished JPEGs from Lightroom. Use matching base filenames for full-resolution, social and optional RAW versions.
 3. Upload versions into the project; matching versions keep one photo identity. Review conflicts before replacement.
